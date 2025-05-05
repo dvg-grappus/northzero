@@ -1,8 +1,8 @@
 import { POSITIONING_JSON_PROMPT, POSITIONING_STATEMENTS_PROMPT, GENERATE_MORE_OPTIONS_PROMPT } from '@/constants/openaiPrompts';
 import { INSIGHT_AGENT_PROMPT } from './openaiPrompts';
 
-const OPENAI_API_KEY = 'REMOVED';
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
 
 export async function generatePositioningJson(briefText: string): Promise<any> {
   const prompt = POSITIONING_JSON_PROMPT.replace('{BRIEF_TEXT}', briefText);
