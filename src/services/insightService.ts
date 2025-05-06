@@ -7,11 +7,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export type InsightType =
   | 'contradiction'
-  | 'tip'
+  | 'hot-tip'
   | 'cliché-alert'
-  | 'redundant'
-  | 'praise'
-  | 'fresh-angle';
+  | 'praise';
 
 export interface Insight {
   id: string;

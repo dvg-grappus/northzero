@@ -19,20 +19,16 @@ const mainSteps = ['golden-circle', 'opportunities-challenges', 'values', 'roadm
 
 const typeLabelMap: Record<string, string> = {
   contradiction: 'Contradiction',
-  tip: 'Tip',
+  'hot-tip': 'Hot Tip',
   'cliché-alert': 'Cliché Alert',
-  redundant: 'Redundant',
   praise: 'Praise',
-  'fresh-angle': 'Fresh Angle',
 };
 
 const typeIconMap: Record<string, React.ReactNode> = {
   contradiction: <AlertOctagon className="h-6 w-6 text-red-500" />, // red
-  tip: <Info className="h-6 w-6 text-gray-300" />, // gray (low priority)
+  'hot-tip': <Info className="h-6 w-6 text-orange-400" />, // orange
   'cliché-alert': <Info className="h-6 w-6 text-yellow-300" />, // yellow
-  redundant: <RefreshCw className="h-6 w-6 text-blue-400" />, // blue
   praise: <ThumbsUp className="h-6 w-6 text-green-400" />, // green
-  'fresh-angle': <Lightbulb className="h-6 w-6 text-cyan-400" />, // cyan
 };
 
 const sectionLabelMap: Record<string, string> = {
@@ -245,11 +241,9 @@ const InsightWidget: React.FC<InsightWidgetProps> = ({ currentStep, completedSte
                       {typeIconMap[insight.insight_type]}
                       <span className={`text-xs font-semibold rounded px-2 py-0.5 ${
                         insight.insight_type === 'contradiction' ? 'bg-red-900 text-red-300' :
-                        insight.insight_type === 'tip' ? 'bg-gray-800 text-gray-200' :
+                        insight.insight_type === 'hot-tip' ? 'bg-orange-900 text-orange-200' :
                         insight.insight_type === 'cliché-alert' ? 'bg-yellow-900 text-yellow-300' :
-                        insight.insight_type === 'redundant' ? 'bg-blue-900 text-blue-300' :
                         insight.insight_type === 'praise' ? 'bg-green-900 text-green-300' :
-                        insight.insight_type === 'fresh-angle' ? 'bg-yellow-400 text-yellow-950' :
                         'bg-gray-800 text-gray-200'
                       }`}>{typeLabelMap[insight.insight_type]}</span>
                       <span className="text-xs font-semibold rounded px-2 py-0.5 bg-gray-800 text-gray-200">
@@ -287,11 +281,9 @@ const InsightWidget: React.FC<InsightWidgetProps> = ({ currentStep, completedSte
                     {typeIconMap[latestInsight.insight_type]}
                     <span className={`text-xs font-semibold rounded px-2 py-0.5 ${
                       latestInsight.insight_type === 'contradiction' ? 'bg-red-900 text-red-300' :
-                      latestInsight.insight_type === 'tip' ? 'bg-gray-800 text-gray-200' :
+                      latestInsight.insight_type === 'hot-tip' ? 'bg-orange-900 text-orange-200' :
                       latestInsight.insight_type === 'cliché-alert' ? 'bg-yellow-900 text-yellow-300' :
-                      latestInsight.insight_type === 'redundant' ? 'bg-blue-900 text-blue-300' :
                       latestInsight.insight_type === 'praise' ? 'bg-green-900 text-green-300' :
-                      latestInsight.insight_type === 'fresh-angle' ? 'bg-yellow-400 text-yellow-950' :
                       'bg-gray-800 text-gray-200'
                     }`}>{typeLabelMap[latestInsight.insight_type]}</span>
                     <span className="text-xs font-semibold rounded px-2 py-0.5 bg-gray-800 text-gray-200">

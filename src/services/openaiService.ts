@@ -153,7 +153,7 @@ export async function generateMoreOptions(type: string, contextJson: any, extraN
 }
 
 export interface InsightAgentResponse {
-  type: 'contradiction' | 'tip' | 'cliché-alert' | 'redundant' | 'praise' | 'fresh-angle';
+  type: 'contradiction' | 'hot-tip' | 'cliché-alert' | 'praise';
   message: string;
   references?: string[];
 }

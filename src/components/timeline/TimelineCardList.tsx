@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Step } from "@/types/timeline";
 import { CardStyle } from "@/types/carousel";

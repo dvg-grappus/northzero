@@ -1,4 +1,3 @@
-
 import { Step } from "./timeline";
 
 export interface CardStyle {
@@ -15,4 +14,7 @@ export interface CardStyle {
 export interface CarouselProps {
   steps: Step[];
   onBegin: (id: number) => void;
+  isPositioningComplete?: boolean;
+  internalStatement?: string;
+  externalStatement?: string;
 }

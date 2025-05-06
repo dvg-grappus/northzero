@@ -103,7 +103,8 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
     selectedChallenges,
     roadmapMilestones,
     selectedValues,
-    pinnedDifferentiators
+    pinnedDifferentiators,
+    completeStep
   } = useContext(PositioningContext);
   
   const { isSupabaseConnected } = useProjects();
@@ -151,6 +152,42 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
               .eq('id', item.id);
           }
         }
+      }
+      // Fetch all selected internal slots for this statement
+      const internalSlots = ['WHAT', 'HOW', 'WHY', 'WHO', 'WHERE', 'WHEN'];
+      const { data: allItems } = await supabase
+        .from('positioning_items')
+        .select('*')
+        .eq('statement_id', statementId);
+      const selected: Record<string, string> = {};
+      internalSlots.forEach(slot => {
+        const slotItems = (allItems || []).filter(i => i.item_type === `STATEMENT_${slot}`);
+        const sel = slotItems.find(i => i.state === 'selected');
+        if (sel) selected[slot] = sel.content;
+        else if (slotItems.length > 0) selected[slot] = slotItems[0].content;
+        else selected[slot] = '';
+      });
+      // Rebuild the internal statement string
+      const template = "The only WHAT that HOW for WHO mostly in WHERE because WHY in an era of WHEN.";
+      const internalStatementStr = template.replace(/WHAT|HOW|WHO|WHERE|WHY|WHEN/g, match => selected[match] || `[${match}]`);
+      // Update the statements_json.internal.statement field
+      const { data: statementRows, error: statementError } = await supabase
+        .from('positioning_statements')
+        .select('statements_json')
+        .eq('id', statementId)
+        .maybeSingle();
+      if (statementRows && statementRows.statements_json) {
+        const newStatementsJson = {
+          ...statementRows.statements_json,
+          internal: {
+            ...statementRows.statements_json.internal,
+            statement: internalStatementStr
+          }
+        };
+        await supabase
+          .from('positioning_statements')
+          .update({ statements_json: newStatementsJson })
+          .eq('id', statementId);
       }
     }
   };
@@ -204,6 +241,7 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
         setStatementsGenerated(true);
         setAiResult(statementRow.statements_json);
         setStatementId(statementRow.id);
+        
         // Fetch all positioning_items for this statement
         const { data: items, error } = await supabase
           .from('positioning_items')
@@ -234,6 +272,12 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
           });
           setExternalOptions(extOpts);
           setExternalStatement(extSel);
+          // Also update context for external statement (for parent completion logic)
+          if (extSel.PROPOSITION && extSel.BENEFIT && extSel.OUTCOME) {
+            setSelectedExternalStatement(extSel.PROPOSITION); // fallback: set to PROPOSITION
+          } else {
+            setSelectedExternalStatement('');
+          }
         }
       }
     })();
@@ -402,11 +446,24 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
           });
           setExternalOptions(extOpts);
           setExternalStatement(extSel);
+          // Also update context for external statement (for parent completion logic)
+          if (extSel.PROPOSITION && extSel.BENEFIT && extSel.OUTCOME) {
+            setSelectedExternalStatement(extSel.PROPOSITION); // fallback: set to PROPOSITION
+          } else {
+            setSelectedExternalStatement('');
+          }
         }
       }
       // Refresh UI
       await refreshData();
       setStatementsGenerated(true);
+      
+      // Call onComplete after successful generation
+      // if (onComplete) {
+      //   onComplete();
+      // } else if (completeStep) {
+      //   completeStep("statements");
+      // }
     } catch (err: any) {
       setError(err.message || 'Failed to generate statements');
     } finally {

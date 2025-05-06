@@ -61,7 +61,9 @@ export const PositioningDataProvider: React.FC<{ children: React.ReactNode }> = 
     setSelectedOpportunities,
     setSelectedChallenges,
     setPinnedDifferentiators,
-    setBriefContext
+    setBriefContext,
+    setInternalStatement,
+    setSelectedExternalStatement
   } = useContext(PositioningContext);
   
   // Add a force refresh counter
@@ -127,6 +129,45 @@ export const PositioningDataProvider: React.FC<{ children: React.ReactNode }> = 
         setValues(items.filter(item => item.item_type === 'VALUE'));
         setWhileOthers(items.filter(item => item.item_type === 'WHILE_OTHERS'));
         setWeAreTheOnly(items.filter(item => item.item_type === 'WE_ARE_THE_ONLY'));
+        
+        // --- NEW: Fetch and sync statements context ---
+        try {
+          const statementRow = await positioningService.getPositioningStatements(projectId);
+          if (statementRow && statementRow.id) {
+            // Fetch all positioning_items for this statement
+            const { data: statementItems, error } = await supabase
+              .from('positioning_items')
+              .select('*')
+              .eq('statement_id', statementRow.id);
+            if (!error && statementItems) {
+              // Internal
+              const internal: Record<string, string> = {};
+              ['WHAT', 'HOW', 'WHY', 'WHO', 'WHERE', 'WHEN'].forEach(slot => {
+                const slotItems = statementItems.filter(i => i.item_type === `STATEMENT_${slot}`);
+                const selected = slotItems.find(i => i.state === 'selected');
+                if (selected) internal[slot] = selected.content;
+                else if (slotItems.length > 0) internal[slot] = slotItems[0].content;
+                else internal[slot] = '';
+              });
+              setInternalStatement(internal);
+              // External
+              const extSel: Record<string, string> = {};
+              ['PROPOSITION', 'BENEFIT', 'OUTCOME'].forEach(slot => {
+                const slotItems = statementItems.filter(i => i.item_type === `STATEMENT_${slot}`);
+                const selected = slotItems.find(i => i.state === 'selected');
+                if (selected) extSel[slot] = selected.content;
+              });
+              if (extSel.PROPOSITION && extSel.BENEFIT && extSel.OUTCOME) {
+                setSelectedExternalStatement(extSel.PROPOSITION); // fallback: set to PROPOSITION
+              } else {
+                setSelectedExternalStatement('');
+              }
+            }
+          }
+        } catch (err) {
+          // Ignore errors here, just don't set statements context
+        }
+        // --- END NEW ---
         
         // Reset retry count on successful load
         setRetryCount(0);

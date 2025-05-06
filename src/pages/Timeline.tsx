@@ -13,6 +13,7 @@ import TimelineCarousel3D from "@/components/timeline/TimelineCarousel3D";
 import TimelineHeader from "@/components/timeline/TimelineHeader";
 import HelpButton from "@/components/timeline/HelpButton";
 import { navigateToStep } from "@/utils/stepNavigation";
+import { TimelineStatusProvider } from '@/components/timeline/TimelineStatusProvider';
 
 const Timeline: React.FC = () => {
   const location = useLocation();
@@ -173,63 +174,65 @@ const Timeline: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground relative overflow-hidden">
-      {/* Simple gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/90 to-background z-0"></div>
-      
-      <TimelineTopBar />
-      <OfflineToast />
-      
-      {/* Project header - Redesigned with higher z-index */}
-      {activeProject && (
-        <div className="absolute top-[80px] left-0 right-0 bg-background/50 backdrop-blur-sm z-40">
-          <div className="container max-w-[1200px] mx-auto px-4 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <button 
-                  onClick={handleBackToBrandHub}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-foreground bg-background/60 hover:bg-background/80 rounded-md transition-all"
-                  style={{ 
-                    cursor: 'pointer',
-                    position: 'relative',
-                    zIndex: 50 // Ensure this is above all carousel elements
-                  }}
-                >
-                  <ArrowLeft size={16} />
-                  <span>Back to Brand Hub</span>
-                </button>
-                <h2 className="text-2xl font-bold">{activeProject.name}</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
-                  {activeProject.progress}% complete
+    <TimelineStatusProvider>
+      <div className="min-h-screen w-full bg-background text-foreground relative overflow-hidden">
+        {/* Simple gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/90 to-background z-0"></div>
+        
+        <TimelineTopBar />
+        <OfflineToast />
+        
+        {/* Project header - Redesigned with higher z-index */}
+        {activeProject && (
+          <div className="absolute top-[80px] left-0 right-0 bg-background/50 backdrop-blur-sm z-40">
+            <div className="container max-w-[1200px] mx-auto px-4 py-6">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <button 
+                    onClick={handleBackToBrandHub}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-foreground bg-background/60 hover:bg-background/80 rounded-md transition-all"
+                    style={{ 
+                      cursor: 'pointer',
+                      position: 'relative',
+                      zIndex: 50 // Ensure this is above all carousel elements
+                    }}
+                  >
+                    <ArrowLeft size={16} />
+                    <span>Back to Brand Hub</span>
+                  </button>
+                  <h2 className="text-2xl font-bold">{activeProject.name}</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                    {activeProject.progress}% complete
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      
-      <div className="pt-[130px] pb-[48px] px-4 max-w-[1200px] mx-auto relative z-10">
-        <TimelineHeader 
-          title="Your route beyond zero."
-          description="Fourteen concise modules. Move in order or jump to what matters."
-        />
-        
-        <TimelineCarousel3D 
-          steps={TIMELINE_STEPS}
-          onBegin={handleStepBegin}
-        />
-      </div>
-      
-      <HelpButton onClick={() => setShowHelpDrawer(prev => !prev)} />
-      
-      <AnimatePresence>
-        {showHelpDrawer && (
-          <HelpDrawer isOpen={showHelpDrawer} onClose={() => setShowHelpDrawer(false)} />
         )}
-      </AnimatePresence>
-    </div>
+        
+        <div className="pt-[130px] pb-[48px] px-4 max-w-[1200px] mx-auto relative z-10">
+          <TimelineHeader 
+            title="Your route beyond zero."
+            description="Fourteen concise modules. Move in order or jump to what matters."
+          />
+          
+          <TimelineCarousel3D 
+            steps={TIMELINE_STEPS}
+            onBegin={handleStepBegin}
+          />
+        </div>
+        
+        <HelpButton onClick={() => setShowHelpDrawer(prev => !prev)} />
+        
+        <AnimatePresence>
+          {showHelpDrawer && (
+            <HelpDrawer isOpen={showHelpDrawer} onClose={() => setShowHelpDrawer(false)} />
+          )}
+        </AnimatePresence>
+      </div>
+    </TimelineStatusProvider>
   );
 };
 

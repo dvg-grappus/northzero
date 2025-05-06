@@ -56,12 +56,12 @@ const PositioningPageContent: React.FC = () => {
 
   useEffect(() => {
     if (positioningComplete) {
-      navigate('/timeline', { state: { fromPositioning: true } });
+      navigate(`/timeline?projectId=${projectId}`, { state: { fromPositioning: true } });
     }
-  }, [positioningComplete, navigate]);
+  }, [positioningComplete, navigate, projectId]);
 
   const handleCompleteStep = () => {
-    navigate('/timeline', { state: { fromPositioning: true } });
+    navigate(`/timeline?projectId=${projectId}`, { state: { fromPositioning: true } });
   };
 
   // Function to handle step completion and advance to next step
