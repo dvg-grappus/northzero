@@ -115,7 +115,7 @@ const OpportunitiesChallenges: React.FC<OpportunitiesChallengesProps> = ({ onCom
     
     // Update UI state first
     if (type === 'opportunities') {
-      setSelectedOpportunities(prev => 
+      setSelectedOpportunities(prev =>
         prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
       );
     } else {
@@ -131,18 +131,18 @@ const OpportunitiesChallenges: React.FC<OpportunitiesChallengesProps> = ({ onCom
       console.error('Failed to update item state:', error);
       // Revert UI state if DB update fails
       if (type === 'opportunities') {
-        setSelectedOpportunities(prev => 
+    setSelectedOpportunities(prev =>
           prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
         );
       } else {
-        setSelectedChallenges(prev => 
+      setSelectedChallenges(prev =>
           prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
-        );
+      );
       }
       toast.error('Failed to update selection');
     }
   };
-
+  
   const handleDiscard = async (type: 'opportunities' | 'challenges', item: string) => {
     const items = type === 'opportunities' ? opportunities : challenges;
     const selectedItem = items.find(i => i.content === item);

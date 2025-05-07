@@ -132,8 +132,6 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
   const addCompetitor = (competitor: Competitor) => {
     setCompetitors(prev => [...prev, competitor]);
     toggleSelectCompetitor(competitor.id);
-    // Analytics
-    console.log("Analytics: onCompetitorAdd", { source: "manual", id: competitor.id });
   };
   
   const removeCompetitor = (id: string) => {
@@ -176,9 +174,6 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
         "takeaway"
       );
     }
-    
-    // Analytics
-    console.log("Analytics: onTakeawaySave", { card_id: id });
     
     toast.success("Takeaway saved to insight pool");
   };
@@ -288,9 +283,6 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
       );
     }
     
-    // Analytics
-    console.log("Analytics: onTrendAccept", { trend_id: id });
-    
     toast.success("Trend saved to insight pool");
   };
   
@@ -328,9 +320,6 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
       ...prev,
       [axis]: labels
     }));
-    
-    // Analytics
-    console.log("Analytics: onAxisChange", { axis, new_labels: labels });
   };
   
   const updateCompetitorPosition = (id: string, position: { x: number; y: number }) => {
@@ -339,9 +328,6 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
         comp.id === id ? { ...comp, position } : comp
       )
     );
-    
-    // Analytics
-    console.log("Analytics: onLandscapeDrag", { token_id: id, x: position.x, y: position.y });
   };
   
   const createSnapshot = () => {
@@ -368,9 +354,6 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
     };
     
     setSecondaryInsights(prev => [newInsight, ...prev]);
-    
-    // Analytics
-    console.log("Analytics: onInsightPoolUpdate", { pool: "secondary", action: "add", insight_id: newInsight.id });
   };
   
   const starInsight = (id: string, starred: boolean) => {
@@ -379,20 +362,10 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
         insight.id === id ? { ...insight, starred } : insight
       )
     );
-    
-    // Analytics
-    console.log("Analytics: onInsightPoolUpdate", { 
-      pool: "secondary", 
-      action: starred ? "star" : "unstar", 
-      insight_id: id 
-    });
   };
   
   const deleteInsight = (id: string) => {
     setSecondaryInsights(prev => prev.filter(insight => insight.id !== id));
-    
-    // Analytics
-    console.log("Analytics: onInsightPoolUpdate", { pool: "secondary", action: "delete", insight_id: id });
   };
   
   const mergeInsights = (ids: string[], newText: string) => {
@@ -411,9 +384,6 @@ export const CompetitionProvider: React.FC<{children: ReactNode}> = ({ children 
       newInsight,
       ...prev.filter(insight => !ids.includes(insight.id))
     ]);
-    
-    // Analytics
-    console.log("Analytics: onInsightPoolUpdate", { pool: "secondary", action: "merge", insight_id: newInsight.id });
     
     toast.success("Insights merged successfully");
   };

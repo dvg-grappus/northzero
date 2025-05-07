@@ -138,11 +138,6 @@ export const PersonalityProvider: React.FC<{ children: ReactNode }> = ({ childre
     const selected = updatedArchetypes.find(a => a.name === name) || null;
     setArchetypes(updatedArchetypes);
     setSelectedArchetype(selected);
-
-    // Analytics hook
-    if (selected) {
-      console.log(`onArchetypeSelect: ${name}, ${selected.match}%`);
-    }
   };
 
   const addToBlend = (name: string) => {
@@ -236,10 +231,6 @@ export const PersonalityProvider: React.FC<{ children: ReactNode }> = ({ childre
       keyword.name === name ? { ...keyword, selected: !keyword.selected } : keyword
     );
     setKeywords(updatedKeywords);
-
-    // Analytics hook
-    const isSelected = updatedKeywords.find(k => k.name === name)?.selected;
-    console.log(`onKeywordToggle: ${name}, ${isSelected ? "selected" : "deselected"}`);
   };
 
   const selectKeywordSet = (set: string[]) => {
@@ -269,9 +260,6 @@ export const PersonalityProvider: React.FC<{ children: ReactNode }> = ({ childre
       slider.axis === axis ? { ...slider, value } : slider
     );
     setSliders(updatedSliders);
-
-    // Analytics hook
-    console.log(`onSliderMove: ${axis}, ${value}`);
   };
 
   const resetSliders = () => {
@@ -312,9 +300,6 @@ export const PersonalityProvider: React.FC<{ children: ReactNode }> = ({ childre
   const saveCombination = () => {
     if (!combination.brandA || !combination.brandB) return;
 
-    // Analytics hook
-    console.log(`onComboSave: ${combination.brandA.name}, ${combination.brandB.name}`);
-
     // In a real app, would save this to state/DB
     alert(`Saved combination: ${combination.brandA.name} × ${combination.brandB.name}`);
   };
@@ -322,14 +307,6 @@ export const PersonalityProvider: React.FC<{ children: ReactNode }> = ({ childre
   // Dichotomy methods
   const updateDichotomyWord = (position: keyof DichotomyData, word: string) => {
     setDichotomy(prev => ({ ...prev, [position]: word }));
-
-    // Analytics hook
-    console.log(`onDichotomyUpdate: ${[
-      dichotomy.wordOne, 
-      dichotomy.wordTwo, 
-      dichotomy.notWordOne, 
-      dichotomy.notWordTwo
-    ]}`);
   };
 
   const swapDichotomyWords = () => {
@@ -366,7 +343,6 @@ export const PersonalityProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   // Module completion
   const completeModule = () => {
-    console.log("onModuleComplete: personality");
     // In a real app, would call API or update global state
   };
 

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import PositioningPage from "@/pages/PositioningPage";
@@ -12,17 +11,11 @@ import StylescapesPage from "@/pages/StylescapesPage";
 const StepPage: React.FC = () => {
   const { stepId, substep } = useParams<{ stepId: string; substep: string }>();
   
-  // Add console logging to help debug routing issues
-  console.log("StepPage rendered with stepId:", stepId, "and substep:", substep);
-
   if (!stepId) {
-    console.error("No stepId found in params, redirecting to Not Found");
     return <Navigate to="/not-found" replace />;
   }
 
   const renderStepContent = () => {
-    console.log(`Rendering content for step ${stepId}`);
-    
     switch (stepId) {
       case "1":
         return <PositioningPage />;
@@ -35,10 +28,8 @@ const StepPage: React.FC = () => {
       case "5":
         return <MoodboardsPage />;
       case "6":
-        console.log("Rendering StylescapesPage for step 6");
         return <StylescapesPage />;
       default:
-        console.error(`No matching step found for stepId: ${stepId}`);
         return <Navigate to="/not-found" replace />;
     }
   };

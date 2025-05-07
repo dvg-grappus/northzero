@@ -1,4 +1,3 @@
-
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
@@ -10,11 +9,8 @@ if (!rootElement) {
   console.error("Root element not found! Make sure the HTML file contains an element with id 'root'");
 } else {
   try {
-    console.log("Attempting to render app...");
     createRoot(rootElement).render(<App />);
-    console.log("App rendered successfully");
   } catch (error) {
-    console.error("Error rendering application:", error);
     // Try to render a fallback error UI directly
     try {
       createRoot(rootElement).render(

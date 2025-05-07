@@ -85,9 +85,9 @@ const GoldenCircle: React.FC<GoldenCircleProps> = ({ onComplete }) => {
           newState[type] = newState[type].filter(i => i !== idea);
         } else {
           newState[type] = [...newState[type], idea];
-        }
+      }
         return newState;
-      });
+    });
       toast.error('Failed to update selection');
     }
   };

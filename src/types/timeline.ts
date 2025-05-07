@@ -1,7 +1,8 @@
+export type TimelineStepState = 'locked' | 'ready' | 'in-progress' | 'completed';
 
 export interface Step {
-  id: number;
+  id: string;
   title: string;
   description: string;
-  duration: string;
+  state: TimelineStepState;
 }

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState } from 'react';
 
 type PanelRole = 'HEADLINE' | 'HERO PEOPLE' | 'TEXTURE & COLOUR' | 'CONTEXT SHOT' | 'EMOJI/ICON CLUSTER';
@@ -156,7 +155,6 @@ export const StylescapesProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Set winner and track analytics
   const setWinner = (rowId: string) => {
     setWinnerState(rowId);
-    console.log(`[Analytics] Winner chosen: ${rowId}`);
   };
 
   // Replace a panel's image
@@ -193,27 +191,21 @@ export const StylescapesProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Analytics hooks
   const onPanelReplace = (rowId: string, panelId: string) => {
-    console.log(`[Analytics] onPanelReplace: ${rowId}, ${panelId}`);
   };
 
   const onBoardRegenerate = (rowId: string) => {
-    console.log(`[Analytics] onBoardRegenerate: ${rowId}`);
   };
 
   const onAIApply = (contextId: string) => {
-    console.log(`[Analytics] onAIApply: ${contextId}`);
   };
 
   const onStylescapeSave = (rowId: string) => {
-    console.log(`[Analytics] onStylescapeSave: ${rowId}`);
   };
 
   const onWinnerChoose = (rowId: string) => {
-    console.log(`[Analytics] onWinnerChoose: ${rowId}`);
   };
 
   const onModuleComplete = (module: string, rowId: string) => {
-    console.log(`[Analytics] onModuleComplete: ${module}, ${rowId}`);
   };
 
   return (

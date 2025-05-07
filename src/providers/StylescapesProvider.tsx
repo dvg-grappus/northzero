@@ -57,7 +57,6 @@ const StylescapesProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Set winner and track analytics
   const setWinner = (rowId: string) => {
     setWinnerState(rowId);
-    console.log(`[Analytics] Winner chosen: ${rowId}`);
   };
 
   // Replace a panel's image
@@ -94,27 +93,21 @@ const StylescapesProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Analytics hooks
   const onPanelReplace = (rowId: string, panelId: string) => {
-    console.log(`[Analytics] onPanelReplace: ${rowId}, ${panelId}`);
   };
 
   const onBoardRegenerate = (rowId: string) => {
-    console.log(`[Analytics] onBoardRegenerate: ${rowId}`);
   };
 
   const onAIApply = (contextId: string) => {
-    console.log(`[Analytics] onAIApply: ${contextId}`);
   };
 
   const onStylescapeSave = (rowId: string) => {
-    console.log(`[Analytics] onStylescapeSave: ${rowId}`);
   };
 
   const onWinnerChoose = (rowId: string) => {
-    console.log(`[Analytics] onWinnerChoose: ${rowId}`);
   };
 
   const onModuleComplete = (module: string, rowId: string) => {
-    console.log(`[Analytics] onModuleComplete: ${module}, ${rowId}`);
   };
 
   return (

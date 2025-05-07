@@ -107,7 +107,7 @@ const Values: React.FC<ValuesProps> = ({ onComplete }) => {
 
     // Update database state
     try {
-      await updateItemState(valueItem.id, newState);
+    await updateItemState(valueItem.id, newState);
     } catch (error) {
       console.error('Failed to update item state:', error);
       // Revert UI state if DB update fails
@@ -117,7 +117,7 @@ const Values: React.FC<ValuesProps> = ({ onComplete }) => {
       toast.error('Failed to update selection');
     }
   };
-
+  
   const handleDiscard = async (value: string) => {
     const valueItem = values.find(item => item.content === value);
     if (!valueItem) return;

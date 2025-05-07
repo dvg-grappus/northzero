@@ -1,4 +1,3 @@
-
 import { NavigateFunction } from "react-router-dom";
 
 /**
@@ -10,8 +9,6 @@ type NavigationCallback = NavigateFunction | ((path: string) => void);
  * Handles navigation to the appropriate route based on step ID
  */
 export const navigateToStep = (stepId: number, navigate: NavigationCallback): void => {
-  console.log(`StepNavigation: Navigating to step ${stepId}`);
-  
   // Add subtle animation before navigation - lighter transition
   document.body.style.opacity = '0.95';
   setTimeout(() => {
@@ -37,11 +34,9 @@ export const navigateToStep = (stepId: number, navigate: NavigationCallback): vo
         path = "/step/4/archetype";
         break;
       case 6:
-        console.log('Navigating to moodboards /step/5/attributes');
         path = "/step/5/attributes";
         break;
       case 7:
-        console.log('Navigating to stylescapes /step/6/craft');
         path = "/step/6/craft";
         break;
       case 8:

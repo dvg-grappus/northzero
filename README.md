@@ -1,73 +1,109 @@
-# Welcome to your Lovable project 2
+# Brand Positioning Platform
 
-## Project info
+A comprehensive platform for brand positioning and strategy development, built with React, TypeScript, and Supabase.
 
-**URL**: https://lovable.dev/projects/d967bf47-8c9c-45e4-be1b-36571c392806
+## Project Structure
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/d967bf47-8c9c-45e4-be1b-36571c392806) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+src/
+├── components/     # Reusable UI components
+├── config/        # Configuration files and constants
+├── constants/     # Application-wide constants
+├── contexts/      # React context providers
+├── hooks/         # Custom React hooks
+├── lib/           # Core libraries and utilities
+├── pages/         # Page components
+├── providers/     # Context providers
+├── services/      # API and external service integrations
+├── types/         # TypeScript type definitions
+└── utils/         # Utility functions
 ```
 
-**Edit a file directly in GitHub**
+## Database Structure
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Core Tables
 
-**Use GitHub Codespaces**
+1. **projects**
+   - Primary table for all projects
+   - Contains project metadata and status
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+2. **positioning_documents**
+   - Stores raw OpenAI responses
+   - Acts as seed data for positioning items
+   - One document per project version
+   - Never modified after creation
 
-## What technologies are used for this project?
+3. **positioning_items**
+   - Generated from positioning_documents
+   - Represents individual positioning elements
+   - States: selected, draft, archived
+   - Types: WHAT, HOW, WHY, OPPORTUNITY, CHALLENGE, MILESTONE, VALUE, WHILE_OTHERS, WE_ARE_THE_ONLY
 
-This project is built with:
+4. **positioning_statements**
+   - Stores final positioning statements
+   - Links to positioning items
+   - Types: internal, external
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+5. **insights**
+   - Context-aware insights
+   - Types: tip, opinion, warning, contradiction, praise
+   - Auto-generated based on positioning state
 
-## How can I deploy this project?
+## Key Features
 
-Simply open [Lovable](https://lovable.dev/projects/d967bf47-8c9c-45e4-be1b-36571c392806) and click on Share -> Publish.
+### 1. Positioning Module
+- Step-by-step positioning development
+- Real-time validation and suggestions
+- Context-aware insights
+- Generate more options workflow
 
-## Can I connect a custom domain to my Lovable project?
+### 2. Timeline Management
+- Three states: selected, draft, archived
+- Automatic state transitions
+- Drag-and-drop reordering
+- Context-aware suggestions
 
-Yes, you can!
+### 3. OpenAI Integration
+- Structured prompts for consistent outputs
+- Context-aware insights generation
+- Generate more options workflow
+- Statement refinement
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### 4. State Management
+- React Context for global state
+- Step-based progression
+- Real-time validation
+- Automatic state transitions
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Development
+
+### Prerequisites
+- Node.js 18+
+- Supabase account
+- OpenAI API key
+
+### Setup
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables
+4. Run migrations: `npm run migrate`
+5. Start development server: `npm run dev`
+
+### Environment Variables
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_OPENAI_API_KEY=your_openai_api_key
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+MIT License - see LICENSE file for details

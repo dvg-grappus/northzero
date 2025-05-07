@@ -48,8 +48,15 @@ const TimelineCard: React.FC<TimelineCardProps> = ({
   const { projects } = useProjects();
   const [showPreview, setShowPreview] = React.useState(false);
   const { getCardStatus, getCardPreview } = useTimelineStatus();
-  const cardStatus = getCardStatus(step.id);
-  const previewData = getCardPreview(step.id);
+  // Convert step.id to number for status functions (fallback to NaN if not possible)
+  const stepIdNum = typeof step.id === 'number' ? step.id : parseInt(step.id, 10);
+  const cardStatus = getCardStatus(stepIdNum);
+  const previewData = getCardPreview(stepIdNum);
+  
+  // Debug: Log the status of the Audience card
+  if (step.title === 'Audience') {
+    console.log('[TimelineCard] Audience card status:', cardStatus);
+  }
   
   // Default gradient as a fallback
   let cardGradient = "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)";
@@ -68,69 +75,67 @@ const TimelineCard: React.FC<TimelineCardProps> = ({
     }
   }
 
-  console.log('showPreview', showPreview);
-  console.log('previewData', previewData);
-
   return (
     <>
-      <motion.div
-        key={step.id}
-        className="absolute"
-        initial={false}
-        animate={{
-          zIndex: style.zIndex,
-          opacity: style.opacity,
-          rotateY: style.rotateY || '0deg',
-          rotateX: style.rotateX || '0deg',
-          translateZ: style.translateZ || '0px',
-          translateX: style.translateX || '0px',
-          translateY: style.translateY || '0px',
-          scale: style.scale,
-        }}
-        whileHover={isActive ? { scale: 1.06, translateZ: "30px" } : {}}
-        transition={{ 
-          type: 'spring', 
-          stiffness: 300, 
-          damping: 30
-        }}
+    <motion.div
+      key={step.id}
+      className="absolute"
+      initial={false}
+      animate={{
+        zIndex: style.zIndex,
+        opacity: style.opacity,
+        rotateY: style.rotateY || '0deg',
+        rotateX: style.rotateX || '0deg',
+        translateZ: style.translateZ || '0px',
+        translateX: style.translateX || '0px',
+        translateY: style.translateY || '0px',
+        scale: style.scale,
+      }}
+      whileHover={isActive ? { scale: 1.06, translateZ: "30px" } : {}}
+      transition={{ 
+        type: 'spring', 
+        stiffness: 300, 
+        damping: 30
+      }}
+      style={{
+        width: '340px',
+        height: '480px',
+        transformStyle: 'preserve-3d',
+        cursor: 'pointer',
+      }}
+      onClick={onClick}
+      id={`timeline-card-${step.id}`}
+    >
+      <div 
+        className="w-full h-full rounded-lg p-8 flex flex-col justify-between transform-gpu backdrop-blur-sm"
         style={{
-          width: '340px',
-          height: '480px',
+          background: cardGradient,
+          boxShadow: isActive ? '0 10px 40px rgba(0, 0, 0, 0.2)' : '0 8px 32px rgba(0, 0, 0, 0.15)',
           transformStyle: 'preserve-3d',
-          cursor: 'pointer',
+          backfaceVisibility: 'hidden',
+          border: '1px solid rgba(255, 255, 255, 0.18)',
         }}
-        onClick={onClick}
-        id={`timeline-card-${step.id}`}
       >
-        <div 
-          className="w-full h-full rounded-lg p-8 flex flex-col justify-between transform-gpu backdrop-blur-sm"
-          style={{
-            background: cardGradient,
-            boxShadow: isActive ? '0 10px 40px rgba(0, 0, 0, 0.2)' : '0 8px 32px rgba(0, 0, 0, 0.15)',
-            transformStyle: 'preserve-3d',
-            backfaceVisibility: 'hidden',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
-          }}
-        >
-          {/* Card Header */}
+        {/* Card Header */}
           <div className="text-left relative">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm font-semibold text-black/70">{step.id}</span>
-              {cardStatus !== 'unstarted' && (
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-sm font-semibold text-black/70">{step.id}</span>
+              {cardStatus === 'locked' ? (
+                <span className="px-3 py-1 text-white text-xs rounded-full font-semibold bg-black">Locked</span>
+              ) : cardStatus !== 'ready' && (
                 <span className={`px-3 py-1 text-black text-xs rounded-full font-semibold ${cardStatus === 'completed' ? 'bg-green-400' : 'bg-yellow-400'}`}>
                   {cardStatus === 'completed' ? 'Completed' : 'In Progress'}
                 </span>
               )}
-            </div>
-            <h3 className="text-2xl font-bold mb-2 text-black/90">{step.title}</h3>
-            <p className="text-black/80 mb-4">{step.description}</p>
+          </div>
+          <h3 className="text-2xl font-bold mb-2 text-black/90">{step.title}</h3>
+          <p className="text-black/80 mb-4">{step.description}</p>
             {/* Preview Button: left-aligned, below description */}
             {cardStatus === 'completed' && previewData && (
               <button
                 className="mt-2 flex items-center gap-2 bg-black text-white px-4 py-2 rounded shadow-sm text-sm font-semibold hover:bg-gray-900 transition"
                 onClick={e => { 
                   e.stopPropagation(); 
-                  console.log('Preview button clicked');
                   setShowPreview(true); 
                 }}
                 style={{ width: 'fit-content' }}
@@ -139,26 +144,37 @@ const TimelineCard: React.FC<TimelineCardProps> = ({
                 Preview
               </button>
             )}
-          </div>
-          {/* Card Footer */}
-          <div className="flex justify-between items-end mt-auto">
-            <span className="text-sm font-medium text-black/70">{step.duration}</span>
-            {isActive && (
-              <motion.button
-                className="px-5 py-2 bg-black text-white rounded-full text-sm font-medium shadow-md"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent card click
-                  onBeginClick();
-                }}
-              >
-                {cardStatus === 'completed' ? 'Fine tune' : cardStatus === 'in-progress' ? 'Continue' : 'Begin'}
-              </motion.button>
-            )}
-          </div>
         </div>
-      </motion.div>
+        {/* Card Footer */}
+          <div className="flex justify-between items-end mt-auto">
+          <span className="text-sm font-medium text-black/70">{(step as any).duration || ''}</span>
+          {isActive && (
+            <motion.button
+              className={`px-5 py-2 rounded-full text-sm font-medium shadow-md transition-colors ${
+                cardStatus === 'locked'
+                  ? 'bg-black text-white cursor-not-allowed opacity-60'
+                  : 'bg-black text-white hover:bg-gray-900'
+              }`}
+              whileHover={cardStatus === 'locked' ? {} : { scale: 1.05 }}
+              whileTap={cardStatus === 'locked' ? {} : { scale: 0.95 }}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent card click
+                if (cardStatus !== 'locked') onBeginClick();
+              }}
+              disabled={cardStatus === 'locked'}
+            >
+              {cardStatus === 'locked'
+                ? '🔒 Locked'
+                : cardStatus === 'completed'
+                ? 'Fine tune'
+                : cardStatus === 'in-progress'
+                ? 'Continue'
+                : 'Begin'}
+            </motion.button>
+          )}
+        </div>
+      </div>
+    </motion.div>
       {/* Bottom Sheet Preview - Plain Portal, No Animation */}
       {showPreview && previewData && ReactDOM.createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }} onClick={() => setShowPreview(false)}>

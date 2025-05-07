@@ -3,7 +3,7 @@ import { getPositioningStatements } from '@/services/positioningService';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
-export type TimelineCardStatus = 'unstarted' | 'in-progress' | 'completed';
+export type TimelineCardStatus = 'locked' | 'ready' | 'in-progress' | 'completed';
 
 interface TimelineCardMeta {
   id: number;
@@ -17,7 +17,7 @@ interface TimelineStatusContextType {
 }
 
 const TimelineStatusContext = createContext<TimelineStatusContextType>({
-  getCardStatus: () => 'unstarted',
+  getCardStatus: () => 'ready',
   getCardPreview: () => undefined,
 });
 
@@ -27,7 +27,6 @@ export const TimelineStatusProvider: React.FC<{ children: React.ReactNode }> = (
   const [statusMap, setStatusMap] = useState<Record<number, TimelineCardMeta>>({});
 
   useEffect(() => {
-    console.log('[TimelineStatusProvider] useEffect running, projectId:', projectId);
     async function fetchStatuses() {
       const map: Record<number, TimelineCardMeta> = {};
       // Positioning (step 1)
@@ -38,8 +37,6 @@ export const TimelineStatusProvider: React.FC<{ children: React.ReactNode }> = (
             .from('positioning_items')
             .select('*')
             .eq('project_id', projectId);
-          console.log('[TimelineStatusProvider] supabase error:', error);
-          console.log('[TimelineStatusProvider] items (raw):', items);
           if (!error && items) {
             // Internal
             const internalSlots = ['WHAT', 'HOW', 'WHY', 'WHO', 'WHERE', 'WHEN'];
@@ -68,30 +65,36 @@ export const TimelineStatusProvider: React.FC<{ children: React.ReactNode }> = (
                 ? `${extSel.PROPOSITION} that ${extSel.BENEFIT} so you achieve ${extSel.OUTCOME}.`
                 : '';
             // Determine status
-            let status: TimelineCardStatus = 'unstarted';
+            let positioningStatus: TimelineCardStatus = 'ready';
             if (items.length > 0) {
-              status = 'in-progress';
+              positioningStatus = 'in-progress';
             }
             if (
               internalSlots.every(slot => selected[slot] && selected[slot].length > 0) &&
               extSlots.every(slot => extSel[slot] && extSel[slot].length > 0)
             ) {
-              status = 'completed';
+              positioningStatus = 'completed';
             }
-            console.log('[TimelineStatusProvider] computed status:', status);
             map[1] = {
               id: 1,
-              status,
+              status: positioningStatus,
               previewData: {
                 internal: internalStatement,
                 external: externalStatement,
               },
             };
+            // --- Audience status logic ---
+            map[2] = {
+              id: 2,
+              status: positioningStatus === 'completed' ? 'ready' : 'locked',
+            };
           } else {
-            map[1] = { id: 1, status: 'unstarted' };
+            map[1] = { id: 1, status: 'ready' };
+            map[2] = { id: 2, status: 'locked' };
           }
         } catch {
-          map[1] = { id: 1, status: 'unstarted' };
+          map[1] = { id: 1, status: 'ready' };
+          map[2] = { id: 2, status: 'locked' };
         }
       }
       // TODO: Add logic for other modules as you implement them
@@ -100,7 +103,7 @@ export const TimelineStatusProvider: React.FC<{ children: React.ReactNode }> = (
     fetchStatuses();
   }, [projectId]);
 
-  const getCardStatus = (id: number) => statusMap[id]?.status || 'unstarted';
+  const getCardStatus = (id: number) => statusMap[id]?.status || 'ready';
   const getCardPreview = (id: number) => statusMap[id]?.previewData;
 
   return (

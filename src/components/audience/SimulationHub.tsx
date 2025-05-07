@@ -75,9 +75,6 @@ const SimulationHub: React.FC<SimulationHubProps> = ({ onComplete }) => {
     setTranscripts(prev => [newTranscript, ...prev]);
     setActiveTranscript(newTranscript.id);
     
-    // Log the simulation start
-    console.log("onSimulationRun", topic || "custom", selectedPersonas);
-    
     // Generate transcript messages with fake typing effect
     simulateConversation(newTranscript.id, selectedPersonas, topicName);
   };
@@ -188,12 +185,6 @@ const SimulationHub: React.FC<SimulationHubProps> = ({ onComplete }) => {
   
   const toggleSpeech = () => {
     setIsSpeechPlaying(!isSpeechPlaying);
-    
-    if (!isSpeechPlaying) {
-      console.log("Speech synthesis would start here");
-    } else {
-      console.log("Speech synthesis would stop here");
-    }
   };
   
   const addAllHighlightedInsights = (transcriptId: string) => {

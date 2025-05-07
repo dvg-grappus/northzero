@@ -50,7 +50,6 @@ export const getLatestPositioningDocument = async (projectId: string): Promise<P
 
     return data;
   } catch (error) {
-    console.error('Error fetching positioning document:', error);
     return null;
   }
 };
@@ -70,7 +69,6 @@ export const getPositioningItems = async (documentId: string): Promise<Positioni
 
     return data || [];
   } catch (error) {
-    console.error('Error fetching positioning items:', error);
     return [];
   }
 };
@@ -87,7 +85,6 @@ export const getProjectPositioningItems = async (projectId: string): Promise<Pos
     // Then get all items for that document
     return await getPositioningItems(latestDoc.id);
   } catch (error) {
-    console.error('Error fetching project positioning items:', error);
     return [];
   }
 };
@@ -117,7 +114,6 @@ export const getSelectedItemsByType = async (
 
     return data || [];
   } catch (error) {
-    console.error(`Error fetching selected ${itemType} items:`, error);
     return [];
   }
 };
@@ -130,7 +126,6 @@ export const updateItemState = async (
   try {
     // Check if the itemId is a valid UUID before proceeding
     if (!isValidUUID(itemId)) {
-      console.warn('Attempted to update mock data, operation skipped:', itemId);
       return true; // Return true to prevent UI errors for mock data
     }
 
@@ -145,7 +140,6 @@ export const updateItemState = async (
 
     return true;
   } catch (error) {
-    console.error('Error updating item state:', error);
     toast.error('Failed to update item');
     return false;
   }
@@ -159,7 +153,6 @@ export const updateMilestoneSlot = async (
   try {
     // Check if the itemId is a valid UUID before proceeding
     if (!isValidUUID(itemId)) {
-      console.warn('Attempted to update mock data, operation skipped:', itemId);
       return true; // Return true to prevent UI errors for mock data
     }
 
@@ -174,14 +167,12 @@ export const updateMilestoneSlot = async (
       .eq('id', itemId);
 
     if (error) {
-      console.error('Error updating milestone slot:', error);
       toast.error('Error updating milestone slot: ' + error.message);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error updating milestone slot:', error);
     toast.error('Error updating milestone slot: ' + (error as any).message);
     return false;
   }
@@ -219,7 +210,6 @@ export const getPositioningSummary = async (projectId: string) => {
     
     return summary;
   } catch (error) {
-    console.error('Error getting positioning summary:', error);
     return null;
   }
 };
@@ -284,7 +274,6 @@ export const createPositioningItemsFromDocument = async (
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error('Error creating positioning_items from document:', error);
     toast.error('Failed to create positioning items');
     return false;
   }
@@ -415,10 +404,8 @@ export async function createStatementItemsFromAI(statementId: string, documentId
   if (itemsToInsert.length > 0) {
     const { error, data } = await supabase.from('positioning_items').insert(itemsToInsert);
     if (error) {
-      console.error('Error inserting statement items:', error);
       toast.error('Failed to insert statement items: ' + error.message);
     } else {
-      console.log(`Inserted ${itemsToInsert.length} statement items successfully.`);
     }
   }
 }
@@ -430,7 +417,6 @@ export async function savePositioningStatements(projectId: string, statementsJso
   // Delete all old statements for this project
   const { error: delError } = await supabase.from('positioning_statements').delete().eq('project_id', projectId);
   if (delError) {
-    console.error('Failed to delete old positioning_statements:', delError);
     throw delError;
   }
   // Add a small delay to help avoid race conditions
