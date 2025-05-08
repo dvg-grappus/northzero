@@ -199,7 +199,7 @@ const PositioningPageContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#1B1B1B] text-foreground">
-      <div className="w-full flex justify-end items-center gap-4 px-6 md:px-[60px] lg:px-[120px] pt-4 z-20 relative" style={{ marginTop: '100px' }}>
+      <div className="w-full flex justify-end items-center gap-4 px-6 md:px-[60px] lg:px-[120px] pt-16 z-20 relative">
         <InsightWidget 
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -209,8 +209,8 @@ const PositioningPageContent: React.FC = () => {
         {projectId && <ResetPositioningStateButton projectId={projectId} />}
       </div>
       <TimelineTopBar currentStep={1} completedSteps={[]} />
-      <div className="relative pt-[88px] px-6 md:px-[60px] lg:px-[120px] pb-20">
-        <h1 className="text-[32px] font-bold mb-6">Positioning Module</h1>
+      <div className="relative pt-6 px-6 md:px-[60px] lg:px-[120px] pb-10">
+        <h1 className="text-[28px] font-bold mb-4">Positioning Module</h1>
         
         <div className="max-w-3xl mx-auto">
           {STEP_CONFIG.map((step, index) => {

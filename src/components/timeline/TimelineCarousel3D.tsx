@@ -1,59 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import { Step } from "@/types/timeline";
 import { CarouselProps } from "@/types/carousel";
-import CarouselControls from "./CarouselControls";
-import TimelineCardList from "./TimelineCardList";
-import { useCarouselNavigation } from "@/hooks/useCarouselNavigation";
+import TimelineCard from "./TimelineCard";
 
-const TimelineCarousel3D: React.FC<CarouselProps> = ({ steps, onBegin }) => {
-  // Use the hook at the top level
-  const {
-    activeIndex,
-    isAnimating,
-    containerRef,
-    goToCard,
-    handleKeyDown,
-    handleTouchStart,
-    handleTouchEnd
-  } = useCarouselNavigation({
-    totalItems: steps.length,
-    animationDuration: 300
-  });
-  
-  const handleBeginClick = (id: number) => {
-    onBegin(id);
-  };
-  
+const TimelineList: React.FC<CarouselProps> = ({ steps, onBegin }) => {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   return (
-    <div 
-      className="w-full h-[700px] relative" 
-      ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      style={{ 
-        perspective: '1500px',
-        touchAction: 'none',
-        overflow: 'visible',
-        outline: 'none',
-      }}
-    >
-      <TimelineCardList 
-        steps={steps}
-        activeIndex={activeIndex}
-        onCardClick={goToCard}
-        onBeginClick={handleBeginClick}
-      />
-      
-      <CarouselControls 
-        activeIndex={activeIndex}
-        totalSteps={steps.length}
-        onPrevious={() => !isAnimating && goToCard(Math.max(0, activeIndex - 1))}
-        onNext={() => !isAnimating && goToCard(Math.min(steps.length - 1, activeIndex + 1))}
-      />
+    <div className="w-full flex-1 min-h-0 overflow-y-auto">
+      <div className="flex flex-col w-full items-center justify-start py-0">
+        {steps.map((step, idx) => (
+          <TimelineCard
+            key={step.id}
+            step={step}
+            onBeginClick={() => onBegin(typeof step.id === 'number' ? step.id : parseInt(step.id, 10))}
+            className={
+              (idx === steps.length - 1 ? 'mb-0 after:hidden' : '') +
+              (idx === 0 ? ' mt-0' : '')
+            }
+          />
+        ))}
+      </div>
     </div>
   );
 };
 
-export default TimelineCarousel3D;
+export default TimelineList;
