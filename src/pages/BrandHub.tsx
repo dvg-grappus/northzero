@@ -10,12 +10,15 @@ import NewProjectDialog from '@/components/projects/NewProjectDialog';
 import ProjectTable from '@/components/projects/ProjectTable';
 import ConnectSupabaseButton from '@/components/ConnectSupabaseButton';
 import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
+import { ModelSelector } from '@/components/ModelSelector';
+import { PromptManagerDrawer } from '@/components/PromptManagerDrawer';
 
 const BrandHub: React.FC = () => {
   const { projects, isLoading, refreshProjects } = useProjects();
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProjects, setFilteredProjects] = useState(projects);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [promptWalletOpen, setPromptWalletOpen] = useState(false);
 
   useEffect(() => {
     if (searchQuery) {
@@ -51,6 +54,19 @@ const BrandHub: React.FC = () => {
             </motion.div>
 
             <div className="flex items-center gap-4">
+              {/* Model selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Model:</span>
+                <ModelSelector />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPromptWalletOpen(true)}
+                title="Prompt Wallet"
+              >
+                Prompt Wallet
+              </Button>
               <Button 
                 variant="outline" 
                 size="icon"
@@ -103,6 +119,8 @@ const BrandHub: React.FC = () => {
           </div>
         </div>
       </header>
+      
+      <PromptManagerDrawer open={promptWalletOpen} onClose={() => setPromptWalletOpen(false)} />
       
       {/* Projects Content */}
       <main className="container max-w-7xl mx-auto px-4 sm:px-6 py-8 mb-20">

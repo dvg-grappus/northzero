@@ -1,1 +1,0 @@
-ALTER TABLE positioning_items DROP CONSTRAINT IF EXISTS positioning_items_statement_id_fkey; ALTER TABLE positioning_items ADD CONSTRAINT positioning_items_statement_id_fkey FOREIGN KEY (statement_id) REFERENCES positioning_statements(id) ON DELETE CASCADE;
