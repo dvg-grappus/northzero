@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProjects } from '@/contexts/ProjectsContext';
@@ -15,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 // Collection of gradient options for project thumbnails
 const gradientOptions = [
@@ -36,7 +37,7 @@ const NewProjectDialog: React.FC = () => {
   const [selectedGradient, setSelectedGradient] = useState(gradientOptions[0].value);
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!name.trim()) {
       toast.error("Please enter a project name");
       return;
@@ -45,7 +46,7 @@ const NewProjectDialog: React.FC = () => {
     setIsCreating(true);
     
     // Create the new project
-    const newProject = await createProject({
+    const newProject = createProject({
       name,
       description,
       thumbnail: selectedGradient,

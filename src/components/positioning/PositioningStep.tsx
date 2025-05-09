@@ -1,3 +1,4 @@
+
 import React from "react";
 import { motion } from "framer-motion";
 import { Check, ChevronUp, ChevronDown } from "lucide-react";
@@ -30,7 +31,7 @@ const PositioningStep: React.FC<PositioningStepProps> = ({
     <div className="col-span-12 mb-6">
       <Collapsible
         open={isOpen}
-        onOpenChange={onToggle}
+        onOpenChange={() => canOpen && onToggle()}
         className="w-full"
       >
         <div className="flex items-center gap-4 bg-secondary p-4 rounded-lg">
@@ -44,13 +45,15 @@ const PositioningStep: React.FC<PositioningStepProps> = ({
           <div className="flex-1">
             <h3 className="font-medium text-lg">{title}</h3>
           </div>
-          <CollapsibleTrigger className="flex items-center gap-2">
+          <CollapsibleTrigger disabled={!canOpen} className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
-              {isCompleted ? "Completed" : isOpen ? "Close" : "Pending"}
+              {isCompleted ? "Completed" : 
+                isOpen ? "Close" : 
+                canOpen ? "Expand" : "Locked"}
             </span>
             {isOpen ? 
-              <ChevronUp className={`w-5 h-5 text-foreground`} /> : 
-              <ChevronDown className={`w-5 h-5 text-foreground`} />
+              <ChevronUp className={`w-5 h-5 ${canOpen ? "text-foreground" : "text-muted-foreground"}`} /> : 
+              <ChevronDown className={`w-5 h-5 ${canOpen ? "text-foreground" : "text-muted-foreground"}`} />
             }
           </CollapsibleTrigger>
         </div>

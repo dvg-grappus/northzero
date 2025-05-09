@@ -1,6 +1,7 @@
-import React, { forwardRef, useState } from "react";
+
+import React, { forwardRef } from "react";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 interface StickyNoteProps {
   id: string;
@@ -23,44 +24,46 @@ const StickyNote = forwardRef<HTMLDivElement, StickyNoteProps>(({
   color = "#FFEB3B", // Bright yellow color typical of sticky notes
   className = ""
 }, ref) => {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <motion.div
       ref={ref}
       id={`sticky-note-${id}`}
-      className={`relative rounded-lg p-3 font-medium text-[13px] ${className} cursor-pointer`}
+      className={`relative rounded-lg p-3 font-medium text-[13px] ${className}`}
       style={{ 
-        backgroundColor: isSelected ? "#7DF9FF" : color,
+        backgroundColor: color,
         boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
       }}
       whileHover={{ y: -2 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="h-full overflow-hidden text-black line-clamp-4">
+      <div className="h-full overflow-hidden mb-6 text-black">
         {content}
       </div>
       
-      {/* Delete button that appears on hover */}
-      {isHovered && (
-        <motion.button
-          className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDiscard();
-          }}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
+      {/* Control Chips */}
+      <div className="absolute bottom-2 right-2 flex gap-1">
+        <button
+          className={`flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
+            isSelected 
+              ? "bg-primary text-primary-foreground" 
+              : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          }`}
+          onClick={onClick}
         >
-          <X className="w-3 h-3 text-black/70" />
-        </motion.button>
-      )}
+          <Check className="w-2.5 h-2.5 mr-0.5" />
+          Select
+        </button>
+        
+        <button
+          className="flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          onClick={onDiscard}
+        >
+          <X className="w-2.5 h-2.5 mr-0.5" />
+          Discard
+        </button>
+      </div>
     </motion.div>
   );
 });

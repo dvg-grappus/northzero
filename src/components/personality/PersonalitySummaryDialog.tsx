@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -59,7 +60,7 @@ const PersonalitySummaryDialog: React.FC<PersonalitySummaryDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Brand Personality Analysis</DialogTitle>
+          <DialogTitle className="text-2xl font-bold mb-4">Brand Personality Analysis</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-8">

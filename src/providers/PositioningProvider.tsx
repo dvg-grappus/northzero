@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PositioningContext } from "@/contexts/PositioningContext";
@@ -17,39 +18,20 @@ export const PositioningProvider: React.FC<{ children: React.ReactNode }> = ({ c
   });
   const [selectedOpportunities, setSelectedOpportunities] = useState<string[]>([]);
   const [selectedChallenges, setSelectedChallenges] = useState<string[]>([]);
-  
-  // Initialize roadmap milestones with empty arrays for each timeline point
-  const [roadmapMilestones, setRoadmapMilestones] = useState<Record<string, string[]>>(() => {
-    const timelinePoints = ["Now", "1 yr", "3 yr", "5 yr", "10 yr"];
-    const initialMilestones: Record<string, string[]> = {};
-    
-    // Initialize empty arrays for each timeline point
-    timelinePoints.forEach(point => {
-      initialMilestones[point] = [];
-    });
-    
-    return initialMilestones;
+  const [roadmapMilestones, setRoadmapMilestones] = useState<Record<string, string[]>>({
+    "Now": [],
+    "1 yr": [],
+    "3 yr": [],
+    "5 yr": [],
+    "10 yr": [],
   });
-  
-  // Initialize values with the mock data
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
-  
-  // Initialize differentiators with the mock data
   const [pinnedDifferentiators, setPinnedDifferentiators] = useState<string[]>([]);
-  
-  const [internalStatement, setInternalStatement] = useState<Record<string, string>>({
-    "WHAT": "",
-    "HOW": "",
-    "WHY": "",
-    "WHO": "innovators and creative thinkers",
-    "WHERE": "professional environments",
-    "WHEN": "the digital transformation era"
-  });
-  
+  const [internalStatement, setInternalStatement] = useState<Record<string, string>>({});
   const [selectedExternalStatement, setSelectedExternalStatement] = useState<string>("");
   const [positioningComplete, setPositioningComplete] = useState<boolean>(false);
   const [activeStep, setActiveStep] = useState<string>("brief");
-  const [completedSteps, setCompletedSteps] = useState<string[]>(["brief"]);
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [openSteps, setOpenSteps] = useState<string[]>(["brief"]);
   
   const navigate = useNavigate();

@@ -2,7 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download, Star, FileText, FileImage } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useMarket } from "@/providers/MarketProvider";
@@ -87,7 +87,6 @@ export const InsightDigest: React.FC<InsightDigestProps> = ({ isOpen, onClose, o
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-        <DialogTitle>Market Insight Digest</DialogTitle>
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-2xl font-semibold mb-1">Market Insight Digest</h2>

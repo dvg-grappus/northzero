@@ -1,5 +1,5 @@
+
 import React, { createContext, useState, useContext, ReactNode } from "react";
-import { SAMPLE_COHORTS, SAMPLE_PERSONAS, SAMPLE_SIMULATION_TOPICS, INITIAL_INSIGHTS } from '@/data/mockAudience';
 
 // Define types
 export interface Insight {
@@ -52,7 +52,7 @@ export interface SimulationTopic {
   title: string;
 }
 
-interface Simulation {
+export interface Simulation {
   id: string;
   topicId: string;
   personaIds: string[];
@@ -60,7 +60,7 @@ interface Simulation {
   timestamp: Date;
 }
 
-interface DemographicFilters {
+export interface DemographicFilters {
   age: [number, number];
   income: [number, number];
   geography: [number, number];
@@ -103,7 +103,7 @@ interface AudienceContextType {
 }
 
 // Create context
-const AudienceContext = createContext<AudienceContextType | undefined>(undefined);
+export const AudienceContext = createContext<AudienceContextType | undefined>(undefined);
 
 // Provider component
 export const AudienceProvider: React.FC<{children: ReactNode}> = ({ children }) => {
@@ -126,12 +126,31 @@ export const AudienceProvider: React.FC<{children: ReactNode}> = ({ children }) 
   const [personas, setPersonas] = useState<Persona[]>([]);
   
   // Simulations state
-  const [simulationTopics, setSimulationTopics] = useState<SimulationTopic[]>(SAMPLE_SIMULATION_TOPICS);
+  const [simulationTopics, setSimulationTopics] = useState<SimulationTopic[]>([
+    { id: "1", title: "Adoption hurdles" },
+    { id: "2", title: "Pricing pushback" },
+    { id: "3", title: "Referral triggers" },
+    { id: "4", title: "Best-case future" },
+    { id: "5", title: "Worst-case scenario" },
+    { id: "6", title: "React to a price increase" },
+    { id: "7", title: "Rate a new feature" },
+    { id: "8", title: "Compare competitors" },
+    { id: "9", title: "Discuss ideal workflow" },
+    { id: "10", title: "Needs at work" },
+  ]);
   
   const [simulations, setSimulations] = useState<Simulation[]>([]);
   
   // Insights state
-  const [insights, setInsights] = useState<Insight[]>(INITIAL_INSIGHTS);
+  const [insights, setInsights] = useState<Insight[]>([
+    {
+      id: "initial-1",
+      text: "Young engineers crave public praise moments inside productivity tools.",
+      source: "System",
+      isSystemGenerated: true,
+      timestamp: new Date(),
+    }
+  ]);
   
   // Update demographic filters
   const updateFilters = (filter: keyof DemographicFilters, values: [number, number]) => {

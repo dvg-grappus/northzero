@@ -1,18 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useProjects } from '@/contexts/ProjectsContext';
-import { Search, LayoutGrid, LayoutList, RefreshCw } from 'lucide-react';
+import { Search, LayoutGrid, LayoutList } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import ProjectCard from '@/components/projects/ProjectCard';
 import NewProjectDialog from '@/components/projects/NewProjectDialog';
 import ProjectTable from '@/components/projects/ProjectTable';
-import ConnectSupabaseButton from '@/components/ConnectSupabaseButton';
-import SupabaseConnectionStatus from '@/components/SupabaseConnectionStatus';
 
 const BrandHub: React.FC = () => {
-  const { projects, isLoading, refreshProjects } = useProjects();
+  const { projects } = useProjects();
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProjects, setFilteredProjects] = useState(projects);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -28,10 +27,6 @@ const BrandHub: React.FC = () => {
       setFilteredProjects(projects);
     }
   }, [searchQuery, projects]);
-
-  const handleRefresh = async () => {
-    await refreshProjects();
-  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -51,14 +46,6 @@ const BrandHub: React.FC = () => {
             </motion.div>
 
             <div className="flex items-center gap-4">
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={handleRefresh}
-                title="Refresh projects"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
               <NewProjectDialog />
             </div>
           </div>
@@ -75,30 +62,25 @@ const BrandHub: React.FC = () => {
               />
             </div>
             
-            <div className="flex items-center gap-4">
-              {/* Supabase connection status */}
-              <SupabaseConnectionStatus />
-              
-              {/* View toggle */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground mr-2">View:</span>
-                <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'grid' | 'list')}>
-                  <TabsList>
-                    <TabsTrigger 
-                      value="grid"
-                      className={viewMode === 'grid' ? 'bg-primary text-primary-foreground' : ''}
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="list"
-                      className={viewMode === 'list' ? 'bg-primary text-primary-foreground' : ''}
-                    >
-                      <LayoutList className="h-4 w-4" />
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
+            {/* View toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground mr-2">View:</span>
+              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'grid' | 'list')}>
+                <TabsList>
+                  <TabsTrigger 
+                    value="grid"
+                    className={viewMode === 'grid' ? 'bg-primary text-primary-foreground' : ''}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="list"
+                    className={viewMode === 'list' ? 'bg-primary text-primary-foreground' : ''}
+                  >
+                    <LayoutList className="h-4 w-4" />
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
           </div>
         </div>
@@ -106,14 +88,7 @@ const BrandHub: React.FC = () => {
       
       {/* Projects Content */}
       <main className="container max-w-7xl mx-auto px-4 sm:px-6 py-8 mb-20">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="flex flex-col items-center">
-              <div className="h-8 w-8 border-2 border-t-primary rounded-full animate-spin mb-4"></div>
-              <p className="text-muted-foreground">Loading projects...</p>
-            </div>
-          </div>
-        ) : filteredProjects.length > 0 ? (
+        {filteredProjects.length > 0 ? (
           <>
             {/* Grid View */}
             {viewMode === 'grid' && (
@@ -131,23 +106,15 @@ const BrandHub: React.FC = () => {
           </>
         ) : (
           <div className="h-64 flex flex-col items-center justify-center">
-            <p className="text-muted-foreground text-center mb-6">No projects found</p>
-            {searchQuery ? (
+            <p className="text-muted-foreground text-center">No projects found</p>
+            {searchQuery && (
               <Button 
                 variant="link" 
                 onClick={() => setSearchQuery('')}
-                className="mb-4"
+                className="mt-2"
               >
                 Clear search
               </Button>
-            ) : (
-              <div className="flex flex-col items-center gap-4">
-                <p className="text-center text-muted-foreground">Get started by creating your first project</p>
-                <NewProjectDialog />
-                <div className="mt-4">
-                  <ConnectSupabaseButton />
-                </div>
-              </div>
             )}
           </div>
         )}

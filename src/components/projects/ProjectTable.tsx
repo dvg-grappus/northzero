@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistance } from 'date-fns';
@@ -26,7 +27,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { useProjects } from '@/contexts/ProjectsContext';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
@@ -70,9 +71,9 @@ const ProjectTable: React.FC<ProjectTableProps> = ({ projects }) => {
     toast("Edit functionality will be implemented soon!");
   };
 
-  const handleDelete = async (e: React.MouseEvent, projectId: string) => {
+  const handleDelete = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
-    await deleteProject(projectId);
+    deleteProject(projectId);
   };
 
   // Get project status configuration

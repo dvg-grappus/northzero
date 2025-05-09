@@ -1,20 +1,83 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { MoodboardsContext, KeywordCategory, Keyword, DirectionCard, Moodboard, MoodboardTile, ImageCategory } from "@/contexts/MoodboardsContext";
-import { 
-  SEED_KEYWORDS, 
-  SEED_DIRECTIONS, 
-  IMAGE_CATEGORY_SUGGESTIONS, 
-  IMAGE_DIMENSIONS, 
-  IMAGE_REPOSITORY, 
-  FALLBACK_IMAGES 
-} from '@/data/mockMoodboards';
+
+// Seed keywords as specified in the spec
+const seedKeywords: Record<KeywordCategory, string[]> = {
+  'Culture': ['Ambitious', 'Pure', 'Redefining', 'Simplify', 'Optimism'],
+  'Customer': ['Result-seeking', 'Youthful', 'Anxious', 'Curious', 'Goal-oriented'],
+  'Voice': ['Jargon-free', 'Optimistic', 'Engaging', 'Feminine', 'Fun'],
+  'Feel': ['Empowered', 'Comforted', 'Mindful', 'In-control', 'Aware'],
+  'Impact': ['Wellness', 'Fitness', 'Coaching', 'Self-esteem'],
+  'X-Factor': ['Iterative', 'Algorithmic', 'Intuitive', 'Gamified', 'Innovative']
+};
+
+// Sample direction cards
+const seedDirections: Partial<DirectionCard>[] = [
+  {
+    id: "dir1",
+    title: "Spark of Innovation",
+    tags: ["FUTURISTIC", "TECHNICAL", "PROGRESSIVE", "ASPIRATIONAL"],
+    description: "Think limitless possibilities. Think fluid interactions. Where digital meets physical, each touchpoint creates moments of delight and discovery.",
+    relevance: 86,
+    thumbnails: [
+      "Neon-edged mobile dashboard in dark UI",
+      "Iridescent gradient archway installation",
+      "Macro photo of diffraction lens"
+    ],
+    selected: false
+  },
+  {
+    id: "dir2",
+    title: "Intentional Minimalism",
+    tags: ["REGAL", "UNDERSTATED", "EXPERT", "CONFIDENT"],
+    description: "Envision a space where minimalism isn't just aesthetic—it's transformative. Clean lines and thoughtful design create breathing room for ideas to flourish.",
+    relevance: 92,
+    thumbnails: [
+      "Stationery set on grey linen",
+      "Wide billboard with sparse serif headline",
+      "Beige modular grid web mock-up"
+    ],
+    selected: false
+  }
+];
+
+// Image category suggestions for Unsplash
+const imageCategorySuggestions: Record<ImageCategory, string> = {
+  'BACKGROUND STYLE': "abstract gradient dark cyan",
+  'TYPOGRAPHY': "magazine serif headline close-up",
+  'LAYOUT': "mobile app clean dashboard ui",
+  'ICON/ILLUSTRATION': "outlined interface icons set",
+  'PHOTO TREATMENT': "business portrait duotone",
+  'TEXTURE': "carbon fibre macro pattern",
+  'COLOR SWATCH': "cyan gradient",
+  'MOTION REF': "looping neon ring gif",
+  'PRINT COLLATERAL': "foil stamped business card black",
+  'ENVIRONMENT': "modern lobby lighting installation",
+  'WILD CARD': "AI generated vaporwave sculpture"
+};
+
+// Image dimensions by category
+const imageDimensions: Record<ImageCategory, { width: number, height: number }> = {
+  'BACKGROUND STYLE': { width: 440, height: 280 },
+  'TYPOGRAPHY': { width: 300, height: 180 },
+  'LAYOUT': { width: 300, height: 300 },
+  'ICON/ILLUSTRATION': { width: 200, height: 200 },
+  'PHOTO TREATMENT': { width: 300, height: 400 },
+  'TEXTURE': { width: 200, height: 200 },
+  'COLOR SWATCH': { width: 200, height: 120 },
+  'MOTION REF': { width: 260, height: 260 },
+  'PRINT COLLATERAL': { width: 300, height: 200 },
+  'ENVIRONMENT': { width: 440, height: 300 },
+  'WILD CARD': { width: 320, height: 240 }
+};
 
 // Helper function to generate a placeholder image URL
 const getPlaceholderImage = (category: ImageCategory): string => {
   // For now, use placeholder URLs. In a real implementation, this would integrate with Unsplash API
-  return `https://source.unsplash.com/random/${IMAGE_DIMENSIONS[category].width}x${IMAGE_DIMENSIONS[category].height}/?${encodeURIComponent(IMAGE_CATEGORY_SUGGESTIONS[category])}`;
+  return `https://source.unsplash.com/random/${imageDimensions[category].width}x${imageDimensions[category].height}/?${encodeURIComponent(imageCategorySuggestions[category])}`;
 };
 
 export const MoodboardsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -32,7 +95,7 @@ export const MoodboardsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
 
     // Convert seed strings to Keyword objects
-    Object.entries(SEED_KEYWORDS).forEach(([category, words]) => {
+    Object.entries(seedKeywords).forEach(([category, words]) => {
       initialKeywords[category as KeywordCategory] = words.map((word, index) => ({
         id: `${category}-${index}`,
         text: word,
@@ -45,7 +108,7 @@ export const MoodboardsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Initialize directions
   const [directions, setDirections] = useState<DirectionCard[]>(() => 
-    SEED_DIRECTIONS.map((dir, index) => ({
+    seedDirections.map((dir, index) => ({
       id: dir.id || `dir-${index + 1}`,
       title: dir.title || `Direction ${index + 1}`,
       tags: dir.tags || [],
@@ -275,9 +338,9 @@ export const MoodboardsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Create new moodboards for these directions
     const newMoodboards = directionsNeedingMoodboards.map(direction => {
       // Create 11 tiles for this moodboard
-      const categories = Object.keys(IMAGE_CATEGORY_SUGGESTIONS) as ImageCategory[];
+      const categories = Object.keys(imageCategorySuggestions) as ImageCategory[];
       const tiles: MoodboardTile[] = categories.map(category => {
-        const { width, height } = IMAGE_DIMENSIONS[category];
+        const { width, height } = imageDimensions[category];
         return {
           id: `${direction.id}-${category}`,
           category,

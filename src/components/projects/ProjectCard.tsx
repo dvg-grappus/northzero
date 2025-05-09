@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 interface ProjectCardProps {
   project: Project;
@@ -98,12 +98,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, index }) => {
     toast("Edit functionality will be implemented soon!");
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const success = await deleteProject(project.id);
-    if (success) {
-      toast.success("Project deleted successfully!");
-    }
+    deleteProject(project.id);
   };
 
   return (

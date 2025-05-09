@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 
-type PanelRole = 'HEADLINE' | 'HERO PEOPLE' | 'TEXTURE & COLOUR' | 'CONTEXT SHOT' | 'EMOJI/ICON CLUSTER';
+export type PanelRole = 'HEADLINE' | 'HERO PEOPLE' | 'TEXTURE & COLOUR' | 'CONTEXT SHOT' | 'EMOJI/ICON CLUSTER';
 
 export interface StylescapePanel {
   id: string;
@@ -64,7 +64,7 @@ const unsplashImages = {
   ]
 };
 
-const defaultStylescapeState = {
+export const defaultStylescapeState = {
   rows: [
     {
       id: "row1",
@@ -133,7 +133,7 @@ const defaultStylescapeState = {
   winner: null
 };
 
-const StylescapesContext = createContext<StylescapesContextType>({
+export const StylescapesContext = createContext<StylescapesContextType>({
   rows: defaultStylescapeState.rows,
   winner: defaultStylescapeState.winner,
   setWinner: () => {},
