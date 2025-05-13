@@ -6,7 +6,7 @@ const OPENAI_COMPLETION_URL = 'https://api.openai.com/v1/completions';
 const OPENAI_REASONING_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
 
-async function getModelConfig() {
+export async function getModelConfig() {
   const config = await llmConfigService.getCurrentConfig();
   if (config && config.model_id) {
     return { model: config.model_id, model_type: config.model_type || 'chat' };
@@ -16,7 +16,7 @@ async function getModelConfig() {
   return { model, model_type: 'chat' };
 }
 
-async function callOpenAI({ model, model_type, systemPrompt, userPrompt, temperature = 0.7, max_tokens = 2048 }) {
+export async function callOpenAI({ model, model_type, systemPrompt, userPrompt, temperature = 0.7, max_tokens = 2048 }) {
   console.log('[DEBUG] callOpenAI CALLED with model:', model, '| model_type:', model_type);
   let endpoint, payload;
   if (model_type === 'reasoning') {
@@ -70,7 +70,7 @@ async function callOpenAI({ model, model_type, systemPrompt, userPrompt, tempera
   }
 }
 
-function extractReasoningJson(response) {
+export function extractReasoningJson(response) {
   console.log('[DEBUG] extractReasoningJson CALLED');
   console.log('[DEBUG] Full reasoning response:', response);
   const message = (response.output || []).find(o => o.type === 'message');

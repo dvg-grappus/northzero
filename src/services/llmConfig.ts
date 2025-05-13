@@ -103,6 +103,7 @@ export const llmConfigService = {
   },
 
   async getPromptByName(promptName: string, promptType: string): Promise<string | null> {
+    console.log('[DEBUG] Fetching prompt with name:', promptName, 'and type:', promptType);
     const { data, error } = await supabase
       .from('llm_config')
       .select('prompt_text')
@@ -111,7 +112,7 @@ export const llmConfigService = {
       .eq('prompt_name', promptName)
       .maybeSingle();
     if (error) {
-      console.error('Error fetching prompt:', error);
+      console.error('[DEBUG] Error fetching prompt:', error);
       return null;
     }
     return data?.prompt_text || null;

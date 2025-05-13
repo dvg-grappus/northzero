@@ -8,7 +8,7 @@ type NavigationCallback = NavigateFunction | ((path: string) => void);
 /**
  * Handles navigation to the appropriate route based on step ID
  */
-export const navigateToStep = (stepId: number, navigate: NavigationCallback): void => {
+export const navigateToStep = (stepId: number, navigate: NavigationCallback, projectId?: string): void => {
   // Add subtle animation before navigation - lighter transition
   document.body.style.opacity = '0.95';
   setTimeout(() => {
@@ -22,7 +22,7 @@ export const navigateToStep = (stepId: number, navigate: NavigationCallback): vo
         path = "/step/1";
         break;
       case 2:
-        path = "/step/2";
+        path = "/step/2/cohort-canvas";
         break;
       case 3:
         path = "/step/3";
@@ -66,7 +66,13 @@ export const navigateToStep = (stepId: number, navigate: NavigationCallback): vo
     
     // Handle both direct navigation and callback navigation
     if (typeof navigate === 'function') {
+      if (stepId === 2 && projectId) {
+        console.log('[navigateToStep] Navigating to', path, 'with projectId:', projectId);
+        navigate(path, { state: { projectId } });
+      } else {
+        console.log('[navigateToStep] Navigating to', path, 'without projectId');
       navigate(path);
+      }
     }
   }, 200); // Reduced transition time for more responsive feel
 };

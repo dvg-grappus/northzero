@@ -7,12 +7,14 @@ interface AxisLabelEditorProps {
   axis: "x" | "y";
   labels: string[];
   onUpdate: (axis: "x" | "y", newLabels: string[]) => void;
+  showSuggestions?: boolean; // New prop to control suggestions button visibility
 }
 
 export const AxisLabelEditor: React.FC<AxisLabelEditorProps> = ({ 
   axis, 
   labels, 
-  onUpdate 
+  onUpdate,
+  showSuggestions = false  // Default to false - hide suggestions 
 }) => {
   const [editing, setEditing] = useState<"start" | "end" | null>(null);
   const [startLabel, setStartLabel] = useState(labels[0]);
@@ -102,34 +104,36 @@ export const AxisLabelEditor: React.FC<AxisLabelEditorProps> = ({
         )}
       </div>
       
-      {/* Suggestions popover */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0">
-            <HelpCircle className="h-3 w-3" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64 p-3" align="start">
-          <h4 className="text-sm font-medium mb-2">Try these alternatives:</h4>
-          <div className="space-y-1">
-            {suggestions[axis].map((pair, index) => (
-              <button
-                key={index}
-                className="w-full text-left px-2 py-1 text-sm rounded hover:bg-muted flex justify-between"
-                onClick={() => {
-                  setStartLabel(pair[0]);
-                  setEndLabel(pair[1]);
-                  handleSave();
-                }}
-              >
-                <span>{pair[0]}</span>
-                <span>↔</span>
-                <span>{pair[1]}</span>
-              </button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+      {/* Suggestions popover - only shown if showSuggestions is true */}
+      {showSuggestions && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0">
+              <HelpCircle className="h-3 w-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="start">
+            <h4 className="text-sm font-medium mb-2">Try these alternatives:</h4>
+            <div className="space-y-1">
+              {suggestions[axis].map((pair, index) => (
+                <button
+                  key={index}
+                  className="w-full text-left px-2 py-1 text-sm rounded hover:bg-muted flex justify-between"
+                  onClick={() => {
+                    setStartLabel(pair[0]);
+                    setEndLabel(pair[1]);
+                    handleSave();
+                  }}
+                >
+                  <span>{pair[0]}</span>
+                  <span>↔</span>
+                  <span>{pair[1]}</span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
     </div>
   );
-};
+}; 

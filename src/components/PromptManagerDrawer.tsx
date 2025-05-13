@@ -4,6 +4,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface PromptManagerDrawerProps {
   open: boolean;
@@ -11,7 +17,10 @@ interface PromptManagerDrawerProps {
 }
 
 export const PromptManagerDrawer: React.FC<PromptManagerDrawerProps> = ({ open, onClose }) => {
-  const [prompts, setPrompts] = useState<LLMConfig[]>([]);
+  const [prompts, setPrompts] = useState<{ [key: string]: LLMConfig[] }>({
+    positioning: [],
+    audience: []
+  });
   const [loading, setLoading] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<LLMConfig | null>(null);
   const [editText, setEditText] = useState('');
@@ -22,8 +31,17 @@ export const PromptManagerDrawer: React.FC<PromptManagerDrawerProps> = ({ open, 
     setLoading(true);
     setError(null);
     try {
-      const data = await llmConfigService.getPrompts('positioning');
-      setPrompts(data);
+      // Fetch all prompt types
+      const promptTypes = ['positioning', 'audience'];
+      const promises = promptTypes.map(type => llmConfigService.getPrompts(type));
+      const responses = await Promise.all(promises);
+      
+      const newPrompts: { [key: string]: LLMConfig[] } = {};
+      promptTypes.forEach((type, index) => {
+        newPrompts[type] = responses[index];
+      });
+      
+      setPrompts(newPrompts);
     } catch (e) {
       setError('Failed to load prompts');
     } finally {
@@ -59,6 +77,30 @@ export const PromptManagerDrawer: React.FC<PromptManagerDrawerProps> = ({ open, 
     setSaving(false);
   };
 
+  const renderPromptList = (prompts: LLMConfig[]) => (
+    <ul className="space-y-4">
+      {prompts.map(prompt => (
+        <li key={prompt.id} className="border rounded p-3 flex flex-col gap-2 bg-muted/30">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wide">{prompt.prompt_type}</span>
+          </div>
+          <div className="font-medium text-sm break-words truncate max-w-full" title={prompt.prompt_name}>{prompt.prompt_name}</div>
+          <div className="text-xs text-muted-foreground mb-1 whitespace-pre-line break-words">{prompt.prompt_description}</div>
+          <div>
+            <Button size="sm" variant="outline" onClick={() => handleEdit(prompt)}>
+              Edit
+            </Button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+
+  // Title case converter for module names
+  const toTitleCase = (str: string) => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   return (
     <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <SheetContent side="right" className="w-[480px] max-w-full">
@@ -90,25 +132,24 @@ export const PromptManagerDrawer: React.FC<PromptManagerDrawerProps> = ({ open, 
                   </div>
                 </div>
               ) : (
-                <div>
-                  <div className="mb-4 text-lg font-semibold">Positioning Prompts</div>
-                  <ul className="space-y-4">
-                    {prompts.map(prompt => (
-                      <li key={prompt.id} className="border rounded p-3 flex flex-col gap-2 bg-muted/30">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wide">{prompt.prompt_type}</span>
-                        </div>
-                        <div className="font-medium text-sm break-words truncate max-w-full" title={prompt.prompt_name}>{prompt.prompt_name}</div>
-                        <div className="text-xs text-muted-foreground mb-1 whitespace-pre-line break-words">{prompt.prompt_description}</div>
-                        <div>
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(prompt)}>
-                            Edit
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <Accordion type="multiple" defaultValue={['positioning']}>
+                  {Object.keys(prompts).map(module => (
+                    <AccordionItem key={module} value={module}>
+                      <AccordionTrigger className="text-lg font-semibold">
+                        {toTitleCase(module)} Prompts
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {prompts[module] && prompts[module].length > 0 ? (
+                          renderPromptList(prompts[module])
+                        ) : (
+                          <div className="text-center text-muted-foreground py-4">
+                            No {module} prompts found
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
               )}
             </>
           )}

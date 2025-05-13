@@ -153,10 +153,18 @@ const Timeline: React.FC = () => {
   
   const handleStepBegin = (stepId: number) => {
     console.log(`Timeline: handleStepBegin fired for step ${stepId}`);
+    console.log('Timeline: current projectId:', projectId);
     // Use the extracted navigation utility and preserve the project ID
     navigateToStep(stepId, (path: string) => {
-      navigate(`${path}?projectId=${projectId}`);
-    });
+      // For non-step 2, keep old behavior
+      if (stepId === 2 && projectId) {
+        console.log('[handleStepBegin] Navigating to', path, 'with projectId in state:', projectId);
+        navigate(path, { state: { projectId } });
+      } else {
+        console.log('[handleStepBegin] Navigating to', path, 'without projectId');
+        navigate(path);
+      }
+    }, projectId);
   };
 
   // Function to handle going back to Brand Hub with debug logs

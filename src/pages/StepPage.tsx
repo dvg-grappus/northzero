@@ -10,7 +10,7 @@ import StylescapesPage from "@/pages/StylescapesPage";
 
 const StepPage: React.FC = () => {
   const { stepId, substep } = useParams<{ stepId: string; substep: string }>();
-  
+
   if (!stepId) {
     return <Navigate to="/not-found" replace />;
   }

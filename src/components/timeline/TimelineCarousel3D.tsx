@@ -5,7 +5,7 @@ import TimelineCard from "./TimelineCard";
 
 const TimelineList: React.FC<CarouselProps> = ({ steps, onBegin }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-
+  
   return (
     <div className="w-full flex-1 min-h-0 overflow-y-auto">
       <div className="flex flex-col w-full items-center justify-start py-0">
