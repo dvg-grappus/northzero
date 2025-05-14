@@ -1,9 +1,9 @@
-import { NavigateFunction } from "react-router-dom";
+import { NavigateFunction, NavigateOptions } from "react-router-dom";
 
 /**
  * Type definition for navigation callback to support both direct navigation and custom callbacks
  */
-type NavigationCallback = NavigateFunction | ((path: string) => void);
+export type NavigationCallback = NavigateFunction | ((path: string, options?: NavigateOptions) => void);
 
 /**
  * Handles navigation to the appropriate route based on step ID
@@ -66,13 +66,18 @@ export const navigateToStep = (stepId: number, navigate: NavigationCallback, pro
     
     // Handle both direct navigation and callback navigation
     if (typeof navigate === 'function') {
-      if (stepId === 2 && projectId) {
-        console.log('[navigateToStep] Navigating to', path, 'with projectId:', projectId);
-        navigate(path, { state: { projectId } });
+      const navigationOptions: NavigateOptions | undefined = projectId ? { state: { projectId } } : undefined;
+      if (navigationOptions) {
+        console.log(`[navigateToStep] Navigating to ${path} for step ${stepId} WITH options:`, navigationOptions);
+        navigate(path, navigationOptions);
       } else {
-        console.log('[navigateToStep] Navigating to', path, 'without projectId');
-      navigate(path);
+        console.warn(`[navigateToStep] Navigating to ${path} for step ${stepId} WITHOUT projectId.`);
+        navigate(path);
       }
     }
   }, 200); // Reduced transition time for more responsive feel
 };
+
+// Export NavigateOptions if it's needed by other modules, otherwise it can be kept internal.
+// For this case, Timeline.tsx imports it, so it should be exported.
+export type { NavigateOptions };

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as positioningService from '@/services/positioningService';
 import { PositioningItem } from '@/services/positioningService';
@@ -33,10 +33,18 @@ const PositioningDataContext = createContext<PositioningDataContextType | undefi
 export const PositioningDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { projectId: paramProjectId } = useParams();
   const [searchParams] = useSearchParams();
-  const queryProjectId = searchParams.get('projectId');
+  const location = useLocation();
   
-  // Use project ID from params or query string
-  const projectId = paramProjectId || queryProjectId || '1'; // Default to first project if none specified
+  const queryProjectId = searchParams.get('projectId');
+  const stateProjectId = location.state?.projectId;
+
+  console.log('[PositioningDataProvider] projectId from param:', paramProjectId);
+  console.log('[PositioningDataProvider] projectId from query:', queryProjectId);
+  console.log('[PositioningDataProvider] projectId from state:', stateProjectId);
+  
+  // Prioritize projectId from state, then param, then query string, then default
+  const projectId = stateProjectId || paramProjectId || queryProjectId || '1'; 
+  console.log('[PositioningDataProvider] Effective projectId:', projectId);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

@@ -11,7 +11,7 @@ import { TIMELINE_STEPS } from '@/data/mockTimeline';
 // Import refactored components
 import TimelineList from "../components/timeline/TimelineCarousel3D";
 import TimelineHeader from "@/components/timeline/TimelineHeader";
-import { navigateToStep } from "@/utils/stepNavigation";
+import { navigateToStep, NavigateOptions } from "@/utils/stepNavigation";
 import { TimelineStatusProvider } from '@/components/timeline/TimelineStatusProvider';
 
 const Timeline: React.FC = () => {
@@ -154,17 +154,18 @@ const Timeline: React.FC = () => {
   const handleStepBegin = (stepId: number) => {
     console.log(`Timeline: handleStepBegin fired for step ${stepId}`);
     console.log('Timeline: current projectId:', projectId);
-    // Use the extracted navigation utility and preserve the project ID
-    navigateToStep(stepId, (path: string) => {
-      // For non-step 2, keep old behavior
-      if (stepId === 2 && projectId) {
-        console.log('[handleStepBegin] Navigating to', path, 'with projectId in state:', projectId);
-        navigate(path, { state: { projectId } });
+    
+    // The navigateToStep function now expects a callback that can handle NavigateOptions
+    navigateToStep(stepId, (path: string, options?: NavigateOptions) => {
+      if (options && options.state) {
+        console.log(`[Timeline - navigate cb] Navigating to ${path} with state:`, options.state);
+        navigate(path, options); 
       } else {
-        console.log('[handleStepBegin] Navigating to', path, 'without projectId');
-        navigate(path);
+        // Fallback if projectId wasn't included in state for some reason (should not happen with new navigateToStep)
+        console.warn(`[Timeline - navigate cb] Navigating to ${path} (no state passed, using query param for projectId if available)`);
+        navigate(projectId ? `${path}?projectId=${projectId}` : path);
       }
-    }, projectId);
+    }, projectId); // Pass projectId to navigateToStep so it can put it in state
   };
 
   // Function to handle going back to Brand Hub with debug logs
