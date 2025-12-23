@@ -20,6 +20,8 @@ export const openAIService = {
   async getAvailableModels(): Promise<OpenAIModel[]> {
     // First try to get the API key from environment
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const baseUrl =
+      import.meta.env.VITE_OPENAI_BASE_URL || 'https://api.openai.com';
     if (!apiKey) {
       console.error('No OpenAI API key found in environment variables');
       throw new Error('OpenAI API key not configured');
@@ -27,10 +29,10 @@ export const openAIService = {
 
     try {
       console.log('Fetching models from OpenAI API...');
-      const response = await fetch('https://api.openai.com/v1/models', {
+      const response = await fetch(`${baseUrl}/v1/models`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
       });

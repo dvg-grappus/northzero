@@ -19,6 +19,10 @@ export function ModelSelector() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const isAllowedModel = (model: Model) =>
+    model.model_type === 'chat' &&
+    /^(gpt-4o|gpt-4-turbo|gpt-3\.5-turbo)/.test(model.id);
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -30,15 +34,33 @@ export function ModelSelector() {
         
         // Load available models
         const models = await openAIService.getAvailableModels();
-        const displayModels = openAIService.getDisplayModels(models);
+        const displayModels = openAIService
+          .getDisplayModels(models)
+          .filter(isAllowedModel);
         setAvailableModels(displayModels);
 
         // Set selected model
-        if (config) {
-          setSelectedModel(config.model_id);
+        const configModel = config?.model_id;
+        const configAllowed = displayModels.find(
+          (m) => m.id === configModel,
+        );
+        if (configAllowed) {
+          setSelectedModel(configAllowed.id);
         } else if (displayModels.length > 0) {
           // Default to first available model if no config exists
           setSelectedModel(displayModels[0].id);
+          // Optionally persist a sane default when existing config is invalid
+          if (configModel && !configAllowed) {
+            await llmConfigService.updateModel(
+              displayModels[0].id,
+              displayModels[0].model_type,
+            );
+            toast({
+              title: 'Model reset',
+              description:
+                'Unsupported model was replaced with a compatible one.',
+            });
+          }
         }
       } catch (error) {
         console.error('Error loading models:', error);
@@ -166,4 +188,4 @@ export function ModelSelector() {
       </SelectContent>
     </Select>
   );
-} 
+}

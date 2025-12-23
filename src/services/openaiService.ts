@@ -1,9 +1,11 @@
 import { llmConfigService } from './llmConfig';
 import { openAIService } from './openai';
 
-const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_COMPLETION_URL = 'https://api.openai.com/v1/completions';
-const OPENAI_REASONING_URL = 'https://api.openai.com/v1/responses';
+const OPENAI_BASE_URL =
+  import.meta.env.VITE_OPENAI_BASE_URL || 'https://api.openai.com';
+const OPENAI_CHAT_URL = `${OPENAI_BASE_URL}/v1/chat/completions`;
+const OPENAI_COMPLETION_URL = `${OPENAI_BASE_URL}/v1/completions`;
+const OPENAI_REASONING_URL = `${OPENAI_BASE_URL}/v1/responses`;
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
 
 export async function getModelConfig() {
@@ -146,15 +148,15 @@ export async function generatePositioningStatementsJson(inputJson: Record<string
       if (extracted) return extracted;
     }
     if (typeof content === 'string') {
-    return JSON.parse(content);
+      return JSON.parse(content);
     } else if (typeof content === 'object') {
       return content;
     }
   } catch (e) {
     if (typeof content === 'string') {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      return JSON.parse(match[0]);
+      const match = content.match(/\{[\s\S]*\}/);
+      if (match) {
+        return JSON.parse(match[0]);
       }
     }
     throw new Error('Failed to parse JSON from OpenAI response');
@@ -268,4 +270,4 @@ export async function getInsightFromOpenAI(contextJson: any): Promise<InsightAge
     }
     throw new Error('Failed to parse JSON from OpenAI response');
   }
-} 
+}

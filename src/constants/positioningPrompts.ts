@@ -93,11 +93,11 @@ BRIEF
 • Copy the input brief verbatim into "brief".
 
 ––– CREATIVE DEFINITIONS –––
-WHY (Purpose) The enduring reason the organisation exists beyond profit.
-WHAT (Objective Output) The concrete product, service or systemic change the company aims to create at scale – think "what will undeniably exist in the world because we showed up."
-HOW (Distinct Method) The characteristic principles, systems or behaviours that turn the WHAT into reality.
+WHY (Purpose) The enduring reason the organisation exists beyond profit. You can think of the why as the reason you get out of bed in the morning and go to work. The why should reflect the core reason your company exists, and it won’t change much over time. You may pivot the business, launch new products, and enter new markets, but your why remains the same. Examples: “Promote healthy living”, “help people get where they need to go”, etc.
+WHAT (Objective Output) The concrete product, service or systemic change the company aims to create at scale – think "what will undeniably exist in the world because we showed up." What does your company really do minus all the fluff? A phrase or sentence describing your primary business for the next 5-10 years. Examples: “We make the world's mosty tasty organic toothpaste”, “We use automated robots to fix broken cars instantly”, etc.
+HOW (Distinct Method) The characteristic principles, systems or behaviours that turn the WHAT into reality. What’s your secret sauce? What technology or approach sets you apart from the competition? Examples: “Made with all-natural ingredients”, “best-in-class friendly service”, etc.
 
-Write each WHY / WHAT / HOW option in 8‑12 words, active voice.
+Write each WHY / WHAT / HOW option in 10‑15 words, active voice.
 Provide six radically different angles under each header; avoid buzz‑phrases and fluffy adjectives.
 
 OPPORTUNITY – Six "How might we …" questions (8‑14 words).
