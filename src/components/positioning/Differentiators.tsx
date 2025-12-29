@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Plus, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { generateMoreOptions } from '@/services/openaiService';
+import { generateMoreOptions, generateDifferentiators, generateStatements } from '@/services/openaiService';
+import { updatePositioningDocumentForProject, getLatestPositioningDocument } from '@/services/positioningService';
 
 interface DifferentiatorCardProps {
   id: string;
@@ -70,8 +71,8 @@ interface DifferentiatorsProps {
 }
 
 const Differentiators: React.FC<DifferentiatorsProps> = ({ onComplete }) => {
-  const { pinnedDifferentiators, setPinnedDifferentiators, completeStep } = useContext(PositioningContext);
-  const { whileOthers, weAreTheOnly, isLoading, updateItemState, refreshData, projectId } = usePositioningData();
+  const { pinnedDifferentiators, setPinnedDifferentiators, completeStep, selectedGoldenCircle, selectedOpportunities, selectedChallenges } = useContext(PositioningContext);
+  const { whileOthers, weAreTheOnly, milestones, values, isLoading, updateItemState, refreshData, projectId, brief } = usePositioningData();
   
   const [pinnedCompetitors, setPinnedCompetitors] = useState<string[]>([]);
   
@@ -109,8 +110,10 @@ const Differentiators: React.FC<DifferentiatorsProps> = ({ onComplete }) => {
     if (!isLoading) {
       const selected = weAreTheOnly.filter(item => item.state === 'selected').map(item => item.content);
       setPinnedDifferentiators(selected);
+      const selectedGaps = whileOthers.filter(item => item.state === 'selected').map(item => item.content);
+      setPinnedCompetitors(selectedGaps);
     }
-  }, [isLoading, weAreTheOnly, setPinnedDifferentiators]);
+  }, [isLoading, weAreTheOnly, whileOthers, setPinnedDifferentiators]);
   
   const handleToggleCompetitor = async (competitor: string) => {
     const competitorItem = whileOthers.find(item => item.content === competitor);
@@ -152,11 +155,144 @@ const Differentiators: React.FC<DifferentiatorsProps> = ({ onComplete }) => {
     await refreshData();
   };
   
-  const handleComplete = () => {
-    if (onComplete) {
-      onComplete();
-    } else if (completeStep) {
-      completeStep("differentiators");
+  const isComplete = pinnedDifferentiators.length > 0 && pinnedCompetitors.length > 0;
+  const [hasExistingStatements, setHasExistingStatements] = useState(false);
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  useEffect(() => {
+    const checkStatements = async () => {
+      // Check the positioning_statements table (where Statements component saves data)
+      const { data: statementsRow } = await supabase
+        .from('positioning_statements')
+        .select('id')
+        .eq('project_id', projectId)
+        .limit(1)
+        .maybeSingle();
+      if (statementsRow?.id) {
+        setHasExistingStatements(true);
+      } else {
+        setHasExistingStatements(false);
+      }
+    };
+    if (projectId) checkStatements();
+  }, [projectId, pinnedDifferentiators.length, pinnedCompetitors.length]);
+
+  const handleComplete = async () => {
+    if (!isComplete || isAdvancing) return;
+    if (hasExistingStatements) {
+      if (onComplete) onComplete();
+      else if (completeStep) completeStep("differentiators");
+      return;
+    }
+    setIsAdvancing(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const selectionBundle = {
+        brief,
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+        opportunities: selectedOpportunities,
+        challenges: selectedChallenges,
+        milestones: milestones.map(m => m.content),
+        values: values.map(v => ({
+          title: v.content,
+          blurb: v.extra_json?.blurb || '',
+          state: v.state,
+        })),
+        differentiators: {
+          whileOthers: pinnedCompetitors,
+          weAreTheOnly: pinnedDifferentiators,
+        },
+      };
+      const genStatements = await generateStatements(brief, selectionBundle);
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief,
+        whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+        howStatements: latestDoc?.raw_payload?.howStatements || [],
+        whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+        opportunities: latestDoc?.raw_payload?.opportunities || [],
+        challenges: latestDoc?.raw_payload?.challenges || [],
+        milestones: latestDoc?.raw_payload?.milestones || [],
+        values: latestDoc?.raw_payload?.values || [],
+        differentiators: {
+          whileOthers: whileOthers.map(w => ({ content: w.content, state: w.state })),
+          weAreTheOnly: weAreTheOnly.map(w => ({ content: w.content, state: w.state })),
+        },
+        statements: genStatements,
+      };
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      if (refreshData) await refreshData();
+      setHasExistingStatements(true);
+      if (onComplete) onComplete();
+      else if (completeStep) completeStep("differentiators");
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate statements');
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const selectionBundle = {
+        brief,
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+        opportunities: selectedOpportunities,
+        challenges: selectedChallenges,
+        milestones: milestones.map(m => m.content),
+        values: values.map(v => ({
+          title: v.content,
+          blurb: v.extra_json?.blurb || '',
+          state: v.state,
+        })),
+      };
+      const genDiffs = await generateDifferentiators(brief, selectionBundle);
+
+      // Clear existing differentiators to avoid duplicates on regen
+      if (latestDoc?.id) {
+        await supabase
+          .from('positioning_items')
+          .delete()
+          .eq('document_id', latestDoc.id)
+          .in('item_type', ['WHILE_OTHERS', 'WE_ARE_THE_ONLY']);
+      }
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief,
+        whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+        howStatements: latestDoc?.raw_payload?.howStatements || [],
+        whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+        opportunities: latestDoc?.raw_payload?.opportunities || [],
+        challenges: latestDoc?.raw_payload?.challenges || [],
+        milestones: latestDoc?.raw_payload?.milestones || [],
+        values: latestDoc?.raw_payload?.values || [],
+        differentiators: {
+          whileOthers: (genDiffs.differentiators?.whileOthers || []).map((c: string) => ({ content: c, state: 'draft' })),
+          weAreTheOnly: (genDiffs.differentiators?.weAreTheOnly || []).map((c: string) => ({ content: c, state: 'draft' })),
+        },
+        statements: null,
+      };
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      setPinnedDifferentiators([]);
+      setPinnedCompetitors([]);
+      if (refreshData) await refreshData();
+      setHasExistingStatements(false);
+      toast.success('Differentiators regenerated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to regenerate differentiators');
+    } finally {
+      setIsRegenerating(false);
     }
   };
   
@@ -293,7 +429,17 @@ const Differentiators: React.FC<DifferentiatorsProps> = ({ onComplete }) => {
   
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Differentiators</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold">Differentiators</h2>
+        <Button
+          variant="outline"
+          className="border-cyan text-cyan hover:bg-cyan/10"
+          onClick={handleRegenerate}
+          disabled={isRegenerating || isAdvancing}
+        >
+          {isRegenerating ? 'Generating...' : 'Regenerate'}
+        </Button>
+      </div>
       {(whileOthers.length === 0 && weAreTheOnly.length === 0) ? (
         <div className="text-center text-muted-foreground py-12">
           No differentiators yet. Highlight what sets you apart.
@@ -481,11 +627,15 @@ const Differentiators: React.FC<DifferentiatorsProps> = ({ onComplete }) => {
       </Dialog>
       
       <div className="mt-6 text-right">
+        {isAdvancing && !hasExistingStatements && (
+          <div className="text-sm text-muted-foreground mb-2">Generating...</div>
+        )}
         <Button
           onClick={handleComplete}
           className="bg-white text-black border border-gray-300 hover:bg-gray-50 shadow-sm transition-colors"
+          disabled={!isComplete || isAdvancing}
         >
-          Craft statements
+          {hasExistingStatements ? 'Next' : 'Complete & Continue'}
         </Button>
       </div>
     </div>

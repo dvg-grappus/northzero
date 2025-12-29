@@ -84,6 +84,12 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
     whatStatements,
     howStatements,
     whyStatements,
+    opportunities,
+    challenges,
+    milestones,
+    values,
+    whileOthers,
+    weAreTheOnly,
     isLoading: isLoadingData,
     updateItemState,
     refreshData,
@@ -225,7 +231,7 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
   };
   
   const getFormattedInternalStatement = () => {
-    const template = "The only WHAT that HOW for WHO, mostly in WHERE, because WHY, in an era of WHEN.";
+    const template = "The only WHAT that HOW for WHO mostly in WHERE because WHY in an era of WHEN.";
     
     return template.replace(/WHAT|HOW|WHO|WHERE|WHY|WHEN/g, match => {
       return internalStatement[match] || `[${match}]`;
@@ -368,36 +374,56 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
   // Use the same completion logic as PositioningPage
   const isBriefComplete = briefContext.trim().length > 0;
   const isGoldenCircleComplete = selectedGoldenCircle.what.length > 0 && selectedGoldenCircle.how.length > 0 && selectedGoldenCircle.why.length > 0;
-  const isOpportunitiesChallengesComplete = selectedOpportunities.length > 0 && selectedChallenges.length > 0;
-  const timelinePoints = ["Now", "1 yr", "3 yr", "5 yr", "10 yr"];
+  const selectedWhileOthers = whileOthers.filter(w => w.state === 'selected').map(w => w.content);
+  const selectedWeAreTheOnly = weAreTheOnly.filter(w => w.state === 'selected').map(w => w.content);
+  const selectedValueTitles = values.filter(v => v.state === 'selected').map(v => v.content);
+  const isOpportunitiesChallengesComplete = selectedOpportunities.length > 0;
+  const timelinePoints = ["Now", "1 yr"];
   const isRoadmapComplete = timelinePoints.every(point => Array.isArray(roadmapMilestones[point]) && roadmapMilestones[point].length > 0);
-  const isValuesComplete = selectedValues.length >= 3;
-  const isDifferentiatorsComplete = pinnedDifferentiators.length >= 1;
+  const isValuesComplete = selectedValueTitles.length >= 1;
+  const isDifferentiatorsComplete = selectedWhileOthers.length >= 1 && selectedWeAreTheOnly.length >= 1;
   const allStepsComplete = isBriefComplete && isGoldenCircleComplete && isOpportunitiesChallengesComplete && isRoadmapComplete && isValuesComplete && isDifferentiatorsComplete;
 
   const handleGenerateStatements = async () => {
+    console.log('[DEBUG] handleGenerateStatements CALLED');
+    if (isLoading || !allStepsComplete) {
+      console.log('[DEBUG] Early return - isLoading:', isLoading, 'allStepsComplete:', allStepsComplete);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
       // Build input JSON
       const inputJson: any = {
         brief: briefContext,
-        what: selectedGoldenCircle.what,
-        how: selectedGoldenCircle.how,
-        why: selectedGoldenCircle.why,
-        opportunities: selectedOpportunities,
-        challenges: selectedChallenges,
-        milestones: Object.entries(roadmapMilestones).flatMap(([slot, items]) =>
-          items.map(content => ({ content, slot: slot.toLowerCase().replace(' ', '') }))
-        ),
-        values: selectedValues.map(title => ({ title, blurb: '' })), // TODO: Add real blurbs if available
+        what: whatStatements.filter(s => s.state === 'selected').map(s => s.content),
+        how: howStatements.filter(s => s.state === 'selected').map(s => s.content),
+        why: whyStatements.filter(s => s.state === 'selected').map(s => s.content),
+        opportunities: opportunities.filter(o => o.state === 'selected').map(o => o.content),
+        challenges: challenges.filter(c => c.state === 'selected').map(c => c.content),
+        milestones: milestones
+          .filter(m => m.state === 'selected')
+          .map(m => ({
+            content: m.content,
+            slot: m.slot,
+          })),
+        values: values
+          .filter(v => v.state === 'selected')
+          .map(v => ({
+            title: v.content,
+            blurb: v.extra_json?.blurb || '',
+          })),
         differentiators: {
-          whileOthers: [], // TODO: Add real data if available
-          weAreTheOnly: pinnedDifferentiators
-        }
+          whileOthers: whileOthers.filter(w => w.state === 'selected').map(w => w.content),
+          weAreTheOnly: weAreTheOnly.filter(w => w.state === 'selected').map(w => w.content),
+        },
       };
+      console.log('[DEBUG] Built inputJson:', JSON.stringify(inputJson, null, 2));
       // Call OpenAI (statements prompt)
       const aiJson = await generatePositioningStatementsJson(inputJson);
+      console.log('[DEBUG] Received aiJson from API:', JSON.stringify(aiJson, null, 2));
+      console.log('[DEBUG] aiJson.internal:', aiJson?.internal);
+      console.log('[DEBUG] aiJson.external:', aiJson?.external);
       setAiResult(aiJson);
       // Save to positioning_statements table
       let saved;
@@ -408,31 +434,42 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
         throw dbErr;
       }
       // Seed positioning_items for statements
+      console.log('[DEBUG] saved object:', saved);
       if (saved && saved.id) {
+        console.log('[DEBUG] saved.id exists:', saved.id);
         // Fetch latest positioning_documents row for this project
         const latestDoc = await getLatestPositioningDocument(projectId);
+        console.log('[DEBUG] latestDoc:', latestDoc);
         if (latestDoc && latestDoc.id) {
+          console.log('[DEBUG] Calling createStatementItemsFromAI with:', saved.id, latestDoc.id, projectId);
           await createStatementItemsFromAI(saved.id, latestDoc.id, projectId, aiJson);
         } else {
-          console.error('No positioning document found for project when seeding statement items.');
+          console.error('[DEBUG] No positioning document found for project when seeding statement items.');
         }
         // Immediately fetch new statement items from DB and update UI state
+        console.log('[DEBUG] Fetching statement items from DB for statement_id:', saved.id);
         const { data: items, error } = await supabase
           .from('positioning_items')
           .select('*')
           .eq('statement_id', saved.id);
+        console.log('[DEBUG] Fetched items from DB:', items);
+        console.log('[DEBUG] Fetch error:', error);
         if (!error && items) {
+          console.log('[DEBUG] Processing', items.length, 'items from DB');
           // Internal
           const internal: Record<string, string> = {};
           const newTokenOptions: Record<string, string[]> = {};
           ['WHAT', 'HOW', 'WHY', 'WHO', 'WHERE', 'WHEN'].forEach(slot => {
             const slotItems = items.filter(i => i.item_type === `STATEMENT_${slot}`);
+            console.log(`[DEBUG] Internal slot ${slot}: found`, slotItems.length, 'items');
             newTokenOptions[slot] = slotItems.map(i => i.content);
             const selected = slotItems.find(i => i.state === 'selected');
             if (selected) internal[slot] = selected.content;
             else if (slotItems.length > 0) internal[slot] = slotItems[0].content;
             else internal[slot] = '';
           });
+          console.log('[DEBUG] newTokenOptions:', newTokenOptions);
+          console.log('[DEBUG] internal selections:', internal);
           setTokenOptions(prev => ({ ...prev, ...newTokenOptions }));
           setInternalStatement(internal);
           // External
@@ -440,10 +477,13 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
           const extSel: Record<string, string> = {};
           ['PROPOSITION', 'BENEFIT', 'OUTCOME'].forEach(slot => {
             const slotItems = items.filter(i => i.item_type === `STATEMENT_${slot}`);
+            console.log(`[DEBUG] External slot ${slot}: found`, slotItems.length, 'items');
             extOpts[slot] = slotItems.map(i => i.content);
             const selected = slotItems.find(i => i.state === 'selected');
             if (selected) extSel[slot] = selected.content;
           });
+          console.log('[DEBUG] extOpts:', extOpts);
+          console.log('[DEBUG] extSel:', extSel);
           setExternalOptions(extOpts);
           setExternalStatement(extSel);
           // Also update context for external statement (for parent completion logic)
@@ -452,7 +492,11 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
           } else {
             setSelectedExternalStatement('');
           }
+        } else {
+          console.error('[DEBUG] No items found or error fetching items');
         }
+      } else {
+        console.error('[DEBUG] saved or saved.id is missing');
       }
       // Refresh UI
       await refreshData();
@@ -510,11 +554,12 @@ const Statements: React.FC<StatementsProps> = ({ onComplete }) => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Positioning Statements</h2>
         <Button
+          variant="outline"
+          className="border-cyan text-cyan hover:bg-cyan/10"
           onClick={handleGenerateStatements}
           disabled={!allStepsComplete || isLoading}
-          className="ml-4 min-w-[200px]"
         >
-          {isLoading ? 'Generating...' : statementsGenerated ? 'Regenerate Statements' : 'Generate Statements'}
+          {isLoading ? 'Generating...' : statementsGenerated ? 'Regenerate' : 'Generate Statements'}
         </Button>
       </div>
       {!statementsGenerated && (

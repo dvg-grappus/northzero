@@ -1,5 +1,17 @@
 import { llmConfigService } from './llmConfig';
 import { openAIService } from './openai';
+import {
+  POSITIONING_GOLDEN_CIRCLE_PROMPT,
+  POSITIONING_OPP_CHALLENGE_PROMPT,
+  POSITIONING_MILESTONES_PROMPT,
+  POSITIONING_VALUES_PROMPT,
+  POSITIONING_DIFFERENTIATORS_PROMPT,
+  POSITIONING_STATEMENTS_PROMPT_STEP,
+} from '@/constants/positioningPrompts';
+import {
+  POSITIONING_JSON_PROMPT,
+  POSITIONING_REST_PROMPT,
+} from '@/constants/archivedPositioningPrompts';
 
 const OPENAI_BASE_URL =
   import.meta.env.VITE_OPENAI_BASE_URL || 'https://api.openai.com';
@@ -7,6 +19,26 @@ const OPENAI_CHAT_URL = `${OPENAI_BASE_URL}/v1/chat/completions`;
 const OPENAI_COMPLETION_URL = `${OPENAI_BASE_URL}/v1/completions`;
 const OPENAI_REASONING_URL = `${OPENAI_BASE_URL}/v1/responses`;
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
+
+const sanitizeJsonString = (raw: string) => {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
+  if (fenced && fenced[1]) return fenced[1].trim();
+  return trimmed;
+};
+
+const parseJsonContent = (content: unknown) => {
+  if (typeof content === 'object' && content !== null) return content;
+  if (typeof content !== 'string') throw new Error('Invalid response format');
+  const cleaned = sanitizeJsonString(content);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse JSON from OpenAI response');
+  }
+};
 
 export async function getModelConfig() {
   const config = await llmConfigService.getCurrentConfig();
@@ -93,7 +125,11 @@ export function extractReasoningJson(response) {
 
 export async function generatePositioningJson(briefText: string): Promise<any> {
   console.log('[DEBUG] generatePositioningJson CALLED');
-  const promptTemplate = await llmConfigService.getPromptByName('POSITIONING_JSON_PROMPT', 'positioning');
+  const promptTemplate =
+    (await llmConfigService.getPromptByName(
+      'POSITIONING_JSON_PROMPT',
+      'positioning'
+    )) || POSITIONING_JSON_PROMPT;
   if (!promptTemplate) throw new Error('Prompt not found in DB: POSITIONING_JSON_PROMPT');
   const prompt = promptTemplate.replace('{BRIEF_TEXT}', briefText);
   const { model, model_type } = await getModelConfig();
@@ -111,28 +147,25 @@ export async function generatePositioningJson(briefText: string): Promise<any> {
       console.log('[DEBUG] Final extracted result:', extracted);
       if (extracted) return extracted;
     }
-    if (typeof content === 'string') {
-    return JSON.parse(content);
-    } else if (typeof content === 'object') {
-      return content;
-    }
+    return parseJsonContent(content);
   } catch (e) {
-    if (typeof content === 'string') {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      return JSON.parse(match[0]);
-      }
-    }
     throw new Error('Failed to parse JSON from OpenAI response');
   }
 }
 
 export async function generatePositioningStatementsJson(inputJson: Record<string, any>): Promise<any> {
   console.log('[DEBUG] generatePositioningStatementsJson CALLED');
-  const promptTemplate = await llmConfigService.getPromptByName('POSITIONING_STATEMENTS_PROMPT', 'positioning');
-  if (!promptTemplate) throw new Error('Prompt not found in DB: POSITIONING_STATEMENTS_PROMPT');
-  const prompt = promptTemplate.replace('<<<INPUT_JSON_GOES_HERE>>>', JSON.stringify(inputJson));
+  console.log('[DEBUG] Input JSON:', JSON.stringify(inputJson, null, 2));
+  const promptTemplate =
+    (await llmConfigService.getPromptByName(
+      'POSITIONING_STATEMENTS_PROMPT_STEP',
+      'positioning',
+    )) || POSITIONING_STATEMENTS_PROMPT_STEP;
+  if (!promptTemplate) throw new Error('Prompt not found in DB: POSITIONING_STATEMENTS_PROMPT_STEP');
+  const prompt = promptTemplate.replace('{SELECTIONS_JSON}', JSON.stringify(inputJson));
+  console.log('[DEBUG] Prompt being sent:', prompt.substring(0, 500) + '...');
   const { model, model_type } = await getModelConfig();
+  console.log('[DEBUG] Using model:', model, '| model_type:', model_type);
   const content = await callOpenAI({
     model,
     model_type,
@@ -141,26 +174,234 @@ export async function generatePositioningStatementsJson(inputJson: Record<string
     temperature: 0.7,
     max_tokens: 2048
   });
+  console.log('[DEBUG] Raw OpenAI response content:', content);
+  console.log('[DEBUG] Content type:', typeof content);
   try {
     if (model_type === 'reasoning' && typeof content === 'object') {
       const extracted = extractReasoningJson(content);
-      console.log('[DEBUG] Final extracted result:', extracted);
+      console.log('[DEBUG] Final extracted result (reasoning):', extracted);
       if (extracted) return extracted;
     }
-    if (typeof content === 'string') {
-      return JSON.parse(content);
-    } else if (typeof content === 'object') {
-      return content;
-    }
+    const parsed = parseJsonContent(content);
+    console.log('[DEBUG] Parsed JSON result:', JSON.stringify(parsed, null, 2));
+    console.log('[DEBUG] Has internal?', !!parsed?.internal);
+    console.log('[DEBUG] Has external?', !!parsed?.external);
+    console.log('[DEBUG] Internal keys:', parsed?.internal ? Object.keys(parsed.internal) : 'N/A');
+    console.log('[DEBUG] External keys:', parsed?.external ? Object.keys(parsed.external) : 'N/A');
+    return parsed;
   } catch (e) {
-    if (typeof content === 'string') {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) {
-        return JSON.parse(match[0]);
-      }
-    }
+    console.error('[DEBUG] Error parsing JSON:', e);
+    console.error('[DEBUG] Raw content that failed:', content);
     throw new Error('Failed to parse JSON from OpenAI response');
   }
+}
+
+export async function generateGoldenCircle(briefText: string, selections: any = {}) {
+  const selectionJson = JSON.stringify(selections || {});
+  const prompt = POSITIONING_GOLDEN_CIRCLE_PROMPT
+    .replace('{BRIEF_TEXT}', briefText)
+    .replace('{SELECTIONS_JSON}', selectionJson);
+  const { model, model_type } = await getModelConfig();
+  const content = await callOpenAI({
+    model,
+    model_type,
+    systemPrompt:
+      'You are a senior brand strategist famed for crafting concise, differentiated positioning.',
+    userPrompt: prompt,
+    temperature: 0.7,
+    max_tokens: 2048,
+  });
+
+  return parseJsonContent(content);
+}
+
+export async function generateRemainingPositioningSections(
+  briefText: string,
+  goldenCircle: {
+    whatStatements?: string[];
+    howStatements?: string[];
+    whyStatements?: string[];
+  },
+) {
+  const prompt = POSITIONING_REST_PROMPT
+    .replace('{BRIEF_TEXT}', briefText)
+    .replace('{GOLDEN_CIRCLE_JSON}', JSON.stringify(goldenCircle || {}));
+
+  const { model, model_type } = await getModelConfig();
+  const content = await callOpenAI({
+    model,
+    model_type,
+    systemPrompt:
+      'You are a senior brand strategist famed for crafting concise, differentiated positioning.',
+    userPrompt: prompt,
+    temperature: 0.7,
+    max_tokens: 4096,
+  });
+
+  return parseJsonContent(content);
+}
+
+export async function generateOpportunitiesAndChallenges(
+  briefText: string,
+  goldenCircle: {
+    whatStatements?: string[];
+    howStatements?: string[];
+    whyStatements?: string[];
+  },
+) {
+  const prompt = POSITIONING_OPP_CHALLENGE_PROMPT
+    .replace('{BRIEF_TEXT}', briefText)
+    .replace('{GOLDEN_CIRCLE_JSON}', JSON.stringify(goldenCircle || {}));
+
+  const { model, model_type } = await getModelConfig();
+  const content = await callOpenAI({
+    model,
+    model_type,
+    systemPrompt:
+      'You are a senior brand strategist famed for crafting concise, differentiated positioning.',
+    userPrompt: prompt,
+    temperature: 0.7,
+    max_tokens: 2048,
+  });
+
+  return parseJsonContent(content);
+}
+
+export async function generateMilestones(
+  briefText: string,
+  selections: {
+    what?: string[];
+    how?: string[];
+    why?: string[];
+    opportunities?: string[];
+    challenges?: string[];
+  },
+) {
+  const selectionJson = JSON.stringify({
+    what: selections.what || [],
+    how: selections.how || [],
+    why: selections.why || [],
+    opportunities: selections.opportunities || [],
+    challenges: selections.challenges || [],
+  });
+
+  const prompt = POSITIONING_MILESTONES_PROMPT
+    .replace('{BRIEF_TEXT}', briefText)
+    .replace('{SELECTIONS_JSON}', selectionJson);
+
+  const { model, model_type } = await getModelConfig();
+  const content = await callOpenAI({
+    model,
+    model_type,
+    systemPrompt:
+      'You are a senior brand strategist famed for crafting concise, differentiated positioning.',
+    userPrompt: prompt,
+    temperature: 0.7,
+    max_tokens: 2048,
+  });
+
+  return parseJsonContent(content);
+}
+
+export async function generateValues(
+  briefText: string,
+  selections: {
+    what?: string[];
+    how?: string[];
+    why?: string[];
+    opportunities?: string[];
+    challenges?: string[];
+    milestones?: string[];
+  },
+) {
+  const selectionJson = JSON.stringify({
+    what: selections.what || [],
+    how: selections.how || [],
+    why: selections.why || [],
+    opportunities: selections.opportunities || [],
+    challenges: selections.challenges || [],
+    milestones: selections.milestones || [],
+  });
+
+  const prompt = POSITIONING_VALUES_PROMPT
+    .replace('{BRIEF_TEXT}', briefText)
+    .replace('{SELECTIONS_JSON}', selectionJson);
+
+  const { model, model_type } = await getModelConfig();
+  const content = await callOpenAI({
+    model,
+    model_type,
+    systemPrompt:
+      'You are a senior brand strategist famed for crafting concise, differentiated positioning.',
+    userPrompt: prompt,
+    temperature: 0.7,
+    max_tokens: 2048,
+  });
+
+  return parseJsonContent(content);
+}
+
+export async function generateDifferentiators(
+  briefText: string,
+  selections: {
+    what?: string[];
+    how?: string[];
+    why?: string[];
+    opportunities?: string[];
+    challenges?: string[];
+    milestones?: string[];
+    values?: { title: string; blurb: string }[];
+  },
+) {
+  const selectionJson = JSON.stringify({
+    what: selections.what || [],
+    how: selections.how || [],
+    why: selections.why || [],
+    opportunities: selections.opportunities || [],
+    challenges: selections.challenges || [],
+    milestones: selections.milestones || [],
+    values: selections.values || [],
+  });
+
+  const prompt = POSITIONING_DIFFERENTIATORS_PROMPT
+    .replace('{BRIEF_TEXT}', briefText)
+    .replace('{SELECTIONS_JSON}', selectionJson);
+
+  const { model, model_type } = await getModelConfig();
+  const content = await callOpenAI({
+    model,
+    model_type,
+    systemPrompt:
+      'You are a senior brand strategist famed for crafting concise, differentiated positioning.',
+    userPrompt: prompt,
+    temperature: 0.7,
+    max_tokens: 2048,
+  });
+
+  return parseJsonContent(content);
+}
+
+export async function generateStatements(
+  briefText: string,
+  selections: any,
+) {
+  const selectionJson = JSON.stringify(selections || {});
+
+  const prompt = POSITIONING_STATEMENTS_PROMPT_STEP
+    .replace('{SELECTIONS_JSON}', selectionJson);
+
+  const { model, model_type } = await getModelConfig();
+  const content = await callOpenAI({
+    model,
+    model_type,
+    systemPrompt:
+      'You are a senior brand strategist famed for crafting concise, differentiated positioning.',
+    userPrompt: prompt,
+    temperature: 0.7,
+    max_tokens: 2048,
+  });
+
+  return parseJsonContent(content);
 }
 
 export async function generateMoreOptions(type: string, contextJson: any, extraNote?: string): Promise<any[]> {
@@ -194,10 +435,8 @@ export async function generateMoreOptions(type: string, contextJson: any, extraN
       parsed = extractReasoningJson(content);
       console.log('[DEBUG] Final extracted result:', parsed);
       if (!parsed) throw new Error('Failed to extract reasoning output');
-    } else if (typeof content === 'string') {
-      parsed = JSON.parse(content);
-    } else if (typeof content === 'object') {
-      parsed = content;
+    } else {
+      parsed = parseJsonContent(content);
     }
     if (type === 'VALUE') {
       if (Array.isArray(parsed.newOptions) && parsed.newOptions.every(opt => typeof opt.title === 'string' && typeof opt.blurb === 'string')) {
@@ -211,21 +450,6 @@ export async function generateMoreOptions(type: string, contextJson: any, extraN
       throw new Error('Invalid response format');
     }
   } catch (e) {
-    if (typeof content === 'string') {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      const parsed = JSON.parse(match[0]);
-      if (type === 'VALUE') {
-        if (Array.isArray(parsed.newOptions) && parsed.newOptions.every(opt => typeof opt.title === 'string' && typeof opt.blurb === 'string')) {
-          return parsed.newOptions;
-        }
-      } else {
-        if (Array.isArray(parsed.newOptions)) {
-          return parsed.newOptions;
-          }
-        }
-      }
-    }
     throw new Error('Failed to parse newOptions from OpenAI response');
   }
 }
@@ -256,18 +480,8 @@ export async function getInsightFromOpenAI(contextJson: any): Promise<InsightAge
       console.log('[DEBUG] Final extracted result:', extracted);
       if (extracted) return extracted;
     }
-    if (typeof content === 'string') {
-      return JSON.parse(content);
-    } else if (typeof content === 'object') {
-      return content;
-    }
+    return parseJsonContent(content);
   } catch (e) {
-    if (typeof content === 'string') {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) {
-        return JSON.parse(match[0]);
-      }
-    }
     throw new Error('Failed to parse JSON from OpenAI response');
   }
 }

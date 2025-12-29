@@ -332,7 +332,118 @@ export const replacePositioningDocumentForProject = async (projectId: string, ai
   return doc;
 };
 
+// Non-destructive updater: update raw_payload and upsert items preserving existing state/slot where possible
+export const updatePositioningDocumentForProject = async (projectId: string, aiJson: any) => {
+  // Get latest document
+  const { data: doc, error: docErr } = await supabase
+    .from('positioning_documents')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('version', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (docErr) throw docErr;
+  if (!doc) {
+    return await replacePositioningDocumentForProject(projectId, aiJson);
+  }
+
+  // Update raw_payload
+  const { error: updErr } = await supabase
+    .from('positioning_documents')
+    .update({ raw_payload: aiJson, brief: aiJson.brief })
+    .eq('id', doc.id);
+  if (updErr) throw updErr;
+
+  // Fetch existing items to preserve state/slot
+  const { data: existingItems, error: itemsErr } = await supabase
+    .from('positioning_items')
+    .select('*')
+    .eq('document_id', doc.id);
+  if (itemsErr) throw itemsErr;
+
+  const existingByContentType = new Map<string, any>();
+  (existingItems || []).forEach((item) => {
+    const key = `${item.item_type}||${item.content}`;
+    existingByContentType.set(key, item);
+  });
+
+  const upserts: any[] = [];
+  let idx = 0;
+  const addItems = (type: string, arr: any[], extra?: (item: any) => any) => {
+    (arr || []).forEach((content: any) => {
+      const text = typeof content === 'string' ? content : content.content || content.title || '';
+      const key = `${type}||${text}`;
+      const existing = existingByContentType.get(key);
+      const extraFields = extra ? extra(content) : {};
+      const row: any = {
+        document_id: doc.id,
+        project_id: projectId,
+        item_type: type,
+        content: text,
+        idx: existing?.idx ?? idx++,
+        state: existing?.state ?? 'draft',
+        slot: existing?.slot ?? extraFields.slot,
+        extra_json: existing?.extra_json ?? extraFields.extra_json,
+        source: existing?.source ?? 'ai',
+      };
+      if (existing?.id) {
+        row.id = existing.id;
+      }
+      upserts.push(row);
+    });
+  };
+
+  addItems('WHAT', aiJson.whatStatements);
+  addItems('HOW', aiJson.howStatements);
+  addItems('WHY', aiJson.whyStatements);
+  addItems('OPPORTUNITY', aiJson.opportunities);
+  addItems('CHALLENGE', aiJson.challenges);
+  addItems('MILESTONE', aiJson.milestones, (m: any) => ({
+    slot: m.slot || 'unassigned',
+  }));
+  addItems('VALUE', aiJson.values, (v: any) => ({
+    extra_json: { blurb: v.blurb },
+  }));
+  addItems('WHILE_OTHERS', aiJson?.differentiators?.whileOthers);
+  addItems('WE_ARE_THE_ONLY', aiJson?.differentiators?.weAreTheOnly);
+
+  if (upserts.length > 0) {
+    const existingRows = upserts.filter((r) => !!r.id);
+    const newRows = upserts.filter((r) => !r.id).map((r) => {
+      const { id, ...rest } = r;
+      return rest;
+    });
+
+    // Insert new rows (no id)
+    if (newRows.length > 0) {
+      const { error: insErr } = await supabase
+        .from('positioning_items')
+        .insert(newRows);
+      if (insErr) throw insErr;
+    }
+
+    // Upsert existing rows by primary key id
+    if (existingRows.length > 0) {
+      const { error: upsertErr } = await supabase
+        .from('positioning_items')
+        .upsert(existingRows, { onConflict: 'id' });
+      if (upsertErr) throw upsertErr;
+    }
+  }
+
+  return doc;
+};
+
 export async function createStatementItemsFromAI(statementId: string, documentId: string, projectId: string, aiJson: any) {
+  console.log('[DEBUG] createStatementItemsFromAI CALLED');
+  console.log('[DEBUG] statementId:', statementId);
+  console.log('[DEBUG] documentId:', documentId);
+  console.log('[DEBUG] projectId:', projectId);
+  console.log('[DEBUG] aiJson received:', JSON.stringify(aiJson, null, 2));
+  console.log('[DEBUG] aiJson.internal:', aiJson?.internal);
+  console.log('[DEBUG] aiJson.external:', aiJson?.external);
+
   const now = new Date().toISOString();
   let idx = 0;
   const itemsToInsert: any[] = [];
@@ -340,7 +451,11 @@ export async function createStatementItemsFromAI(statementId: string, documentId
   // Internal slots
   ['WHAT', 'HOW', 'WHY', 'WHO', 'WHERE', 'WHEN'].forEach(slot => {
     const slotData = aiJson.internal?.[slot];
-    if (!slotData) return;
+    console.log(`[DEBUG] Internal slot ${slot}:`, slotData);
+    if (!slotData) {
+      console.log(`[DEBUG] No data for internal slot ${slot}, skipping`);
+      return;
+    }
     // Preferred
     itemsToInsert.push({
       statement_id: statementId,
@@ -372,7 +487,11 @@ export async function createStatementItemsFromAI(statementId: string, documentId
   // External slots
   ['PROPOSITION', 'BENEFIT', 'OUTCOME'].forEach(slot => {
     const slotData = aiJson.external?.[slot];
-    if (!slotData) return;
+    console.log(`[DEBUG] External slot ${slot}:`, slotData);
+    if (!slotData) {
+      console.log(`[DEBUG] No data for external slot ${slot}, skipping`);
+      return;
+    }
     // Preferred
     itemsToInsert.push({
       statement_id: statementId,
@@ -401,12 +520,19 @@ export async function createStatementItemsFromAI(statementId: string, documentId
     });
   });
 
+  console.log('[DEBUG] Total items to insert:', itemsToInsert.length);
+  console.log('[DEBUG] Items to insert:', JSON.stringify(itemsToInsert, null, 2));
+
   if (itemsToInsert.length > 0) {
     const { error, data } = await supabase.from('positioning_items').insert(itemsToInsert);
     if (error) {
+      console.error('[DEBUG] Error inserting statement items:', error);
       toast.error('Failed to insert statement items: ' + error.message);
     } else {
+      console.log('[DEBUG] Successfully inserted statement items');
     }
+  } else {
+    console.warn('[DEBUG] No items to insert! aiJson structure may be incorrect');
   }
 }
 
