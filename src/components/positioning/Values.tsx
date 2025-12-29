@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { generateMoreOptions } from '@/services/openaiService';
+import { generateMoreOptions, generateDifferentiators, generateValues } from '@/services/openaiService';
+import { getLatestPositioningDocument, updatePositioningDocumentForProject } from '@/services/positioningService';
 
 interface ValueCardProps {
   id: string;
@@ -63,8 +64,8 @@ interface ValuesProps {
 }
 
 const Values: React.FC<ValuesProps> = ({ onComplete }) => {
-  const { selectedValues, setSelectedValues, completeStep } = useContext(PositioningContext);
-  const { values, isLoading, updateItemState, refreshData, projectId } = usePositioningData();
+  const { selectedValues, setSelectedValues, completeStep, selectedGoldenCircle, selectedOpportunities, selectedChallenges } = useContext(PositioningContext);
+  const { values, challenges, opportunities, milestones, isLoading, updateItemState, refreshData, projectId, brief, weAreTheOnly } = usePositioningData();
   
   const [formattedValues, setFormattedValues] = useState<{ id: string; value: string; description: string }[]>([]);
   
@@ -126,27 +127,120 @@ const Values: React.FC<ValuesProps> = ({ onComplete }) => {
     await refreshData();
   };
   
-  const validateSelection = () => {
-    if (selectedValues.length < 3) {
-      toast.error("Select at least 3 values");
-      return false;
+  const hasExistingDifferentiators = (weAreTheOnly?.length || 0) > 0;
+  const isComplete = selectedValues.length > 0;
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const handleComplete = async () => {
+    if (!isComplete || isAdvancing) return;
+    if (hasExistingDifferentiators) {
+      if (onComplete) onComplete();
+      else if (completeStep) completeStep("values");
+      return;
     }
-    
-    if (selectedValues.length > 7) {
-      toast.error("Select at most 7 values");
-      return false;
+    setIsAdvancing(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const selectionBundle = {
+        brief,
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+        opportunities: selectedOpportunities,
+        challenges: selectedChallenges,
+        milestones: milestones.map(m => m.content),
+        values: values.map(v => ({
+          title: v.content,
+          blurb: v.extra_json?.blurb || '',
+          state: v.state,
+        })),
+      };
+      const genDiffs = await generateDifferentiators(brief, selectionBundle);
+      const normalizedDiffs = {
+        whileOthers: (genDiffs.differentiators?.whileOthers || []).map((c: string) => ({ content: c, state: 'draft' })),
+        weAreTheOnly: (genDiffs.differentiators?.weAreTheOnly || []).map((c: string) => ({ content: c, state: 'draft' })),
+      };
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief,
+        whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+        howStatements: latestDoc?.raw_payload?.howStatements || [],
+        whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+        opportunities: latestDoc?.raw_payload?.opportunities || [],
+        challenges: latestDoc?.raw_payload?.challenges || [],
+        milestones: latestDoc?.raw_payload?.milestones || [],
+        values: values.map(v => ({
+          title: v.content,
+          blurb: v.extra_json?.blurb || '',
+          state: v.state,
+        })),
+        differentiators: normalizedDiffs,
+      };
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      if (refreshData) await refreshData();
+
+      if (onComplete) onComplete();
+      else if (completeStep) completeStep("values");
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate differentiators');
+    } finally {
+      setIsAdvancing(false);
     }
-    
-    return true;
   };
-  
-  const handleComplete = () => {
-    if (validateSelection()) {
-      if (onComplete) {
-        onComplete();
-      } else if (completeStep) {
-        completeStep("values");
+
+  const handleRegenerate = async () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const selectionBundle = {
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+        opportunities: selectedOpportunities,
+        challenges: selectedChallenges,
+        milestones: milestones.map(m => m.content),
+      };
+      const genValues = await generateValues(brief, selectionBundle);
+      const normalizedValues = (genValues.values || []).map((v: any) => ({
+        title: v.title || '',
+        blurb: v.blurb || '',
+        state: 'draft',
+      }));
+
+      // Clear existing VALUE items to avoid duplicates on regen
+      if (latestDoc?.id) {
+        await supabase
+          .from('positioning_items')
+          .delete()
+          .eq('document_id', latestDoc.id)
+          .eq('item_type', 'VALUE');
       }
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief,
+        whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+        howStatements: latestDoc?.raw_payload?.howStatements || [],
+        whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+        opportunities: latestDoc?.raw_payload?.opportunities || [],
+        challenges: latestDoc?.raw_payload?.challenges || [],
+        milestones: latestDoc?.raw_payload?.milestones || [],
+        values: normalizedValues,
+        differentiators: { whileOthers: [], weAreTheOnly: [] },
+      };
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      setSelectedValues([]);
+      if (refreshData) await refreshData();
+      toast.success('Values regenerated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to regenerate values');
+    } finally {
+      setIsRegenerating(false);
     }
   };
   
@@ -298,7 +392,17 @@ const Values: React.FC<ValuesProps> = ({ onComplete }) => {
   
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Brand Values</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold">Brand Values</h2>
+        <Button
+          variant="outline"
+          className="border-cyan text-cyan hover:bg-cyan/10"
+          onClick={handleRegenerate}
+          disabled={isRegenerating || isAdvancing}
+        >
+          {isRegenerating ? 'Generating...' : 'Regenerate'}
+        </Button>
+      </div>
       {values.length === 0 ? (
         <div className="text-center text-muted-foreground py-12">
           No values defined yet. Add your core values to shape your brand.
@@ -323,14 +427,10 @@ const Values: React.FC<ValuesProps> = ({ onComplete }) => {
             Top Values
           </motion.h1>
           
-          <div className="flex justify-between items-center mb-4">
-            <div className={`font-medium ${
-              selectedValues.length < 3 ? "text-red-500" : 
-              selectedValues.length > 7 ? "text-red-500" : 
-              "text-green-500"
-            }`}>
-              {selectedValues.length} selected ({3} min, {7} max)
-            </div>
+      <div className="flex justify-between items-center mb-4">
+        <div className="font-medium text-green-500">
+          {selectedValues.length} selected
+        </div>
             <div className="flex gap-2">
               <Button
                 onClick={() => setDialogOpen(true)}
@@ -434,11 +534,15 @@ const Values: React.FC<ValuesProps> = ({ onComplete }) => {
       </Dialog>
       
       <div className="mt-6 text-right">
+        {isAdvancing && !hasExistingDifferentiators && (
+          <div className="text-sm text-muted-foreground mb-2">Generating...</div>
+        )}
         <Button
           onClick={handleComplete}
           className="bg-white text-black hover:bg-gray-100 transition-colors"
+          disabled={!isComplete || isAdvancing}
         >
-          Commit to values
+          {hasExistingDifferentiators ? 'Next' : 'Complete & Continue'}
         </Button>
       </div>
       

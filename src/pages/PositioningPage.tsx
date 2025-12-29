@@ -150,8 +150,8 @@ const PositioningPageContent: React.FC = () => {
   // Completion logic for each step
   const isBriefComplete = positioning.briefContext.trim().length > 0;
   const isGoldenCircleComplete = positioning.selectedGoldenCircle.what.length > 0 && positioning.selectedGoldenCircle.how.length > 0 && positioning.selectedGoldenCircle.why.length > 0;
-  const isOpportunitiesChallengesComplete = positioning.selectedOpportunities.length > 0 && positioning.selectedChallenges.length > 0;
-  const isValuesComplete = positioning.selectedValues.length >= 3;
+  const isOpportunitiesChallengesComplete = positioning.selectedOpportunities.length > 0;
+  const isValuesComplete = positioning.selectedValues.length > 0;
   const isDifferentiatorsComplete = positioning.pinnedDifferentiators.length >= 1;
   // Statements: Internal (WHAT, HOW, WHY, WHO, WHERE, WHEN), External (all statementParts)
   const internalKeys = ["WHAT", "HOW", "WHY", "WHO", "WHERE", "WHEN"];
@@ -161,11 +161,12 @@ const PositioningPageContent: React.FC = () => {
   const isExternalStatementsComplete = positioning.selectedExternalStatement && positioning.selectedExternalStatement.length > 0;
   const isStatementsComplete = isInternalStatementsComplete && isExternalStatementsComplete;
 
-  // Roadmap: completed if all 5 timeline slots have at least one assigned milestone
-  const timelinePoints = ["Now", "1 yr", "3 yr", "5 yr", "10 yr"];
-  const isRoadmapComplete = timelinePoints.every(point =>
-    Array.isArray(positioning.roadmapMilestones[point]) && positioning.roadmapMilestones[point].length > 0
-  );
+  // Roadmap: completed if Now and 1 yr have at least one assigned milestone
+  const isRoadmapComplete =
+    Array.isArray(positioning.roadmapMilestones["Now"]) &&
+    positioning.roadmapMilestones["Now"].length > 0 &&
+    Array.isArray(positioning.roadmapMilestones["1 yr"]) &&
+    positioning.roadmapMilestones["1 yr"].length > 0;
 
   // Helper for status
   const getStepStatus = (stepId: string) => {

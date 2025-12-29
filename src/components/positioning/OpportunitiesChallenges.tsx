@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { generateMoreOptions } from '@/services/openaiService';
+import { generateMoreOptions, generateMilestones } from '@/services/openaiService';
+import { updatePositioningDocumentForProject, getLatestPositioningDocument } from '@/services/positioningService';
 
 interface DraggableNoteProps {
   id: string;
@@ -71,8 +72,8 @@ interface OpportunitiesChallengesProps {
 }
 
 const OpportunitiesChallenges: React.FC<OpportunitiesChallengesProps> = ({ onComplete }) => {
-  const { selectedOpportunities, setSelectedOpportunities, selectedChallenges, setSelectedChallenges, completeStep } = useContext(PositioningContext);
-  const { opportunities, challenges, isLoading, updateItemState, refreshData, projectId } = usePositioningData();
+  const { selectedOpportunities, setSelectedOpportunities, selectedChallenges, setSelectedChallenges, completeStep, selectedGoldenCircle } = useContext(PositioningContext);
+  const { opportunities, challenges, isLoading, updateItemState, refreshData, projectId, brief, milestones } = usePositioningData();
   
   const [discardedOpportunities, setDiscardedOpportunities] = useState<string[]>([]);
   const [discardedChallenges, setDiscardedChallenges] = useState<string[]>([]);
@@ -234,11 +235,123 @@ const OpportunitiesChallenges: React.FC<OpportunitiesChallengesProps> = ({ onCom
     }
   };
   
-  const handleComplete = () => {
-    if (onComplete) {
-      onComplete();
-    } else if (completeStep) {
-      completeStep("opportunities-challenges");
+  const hasAtLeastOneOpportunity = selectedOpportunities.length > 0;
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const hasExistingMilestones = (milestones?.length || 0) > 0;
+  const normalizeMilestones = (list: any[] = []) =>
+    list.map((m) => {
+      if (typeof m === 'string') {
+        try {
+          const parsed = JSON.parse(m);
+          if (parsed && typeof parsed === 'object') {
+            return parsed.content || parsed.title || m;
+          }
+        } catch {
+          return m;
+        }
+        return m;
+      }
+      if (m && typeof m === 'object') {
+        return m.content || m.title || '';
+      }
+      return '';
+    });
+
+  const buildPayloadWithMilestones = async (forceGenerate = false) => {
+    const latestDoc = await getLatestPositioningDocument(projectId);
+    const selectionBundle = {
+      what: selectedGoldenCircle.what,
+      how: selectedGoldenCircle.how,
+      why: selectedGoldenCircle.why,
+      opportunities: selectedOpportunities,
+      challenges: selectedChallenges,
+    };
+
+    let milestonesResp = { milestones: normalizeMilestones(latestDoc?.raw_payload?.milestones || []) };
+    if (forceGenerate || !hasExistingMilestones) {
+      const gen = await generateMilestones(brief, selectionBundle);
+      milestonesResp = { milestones: normalizeMilestones(gen.milestones || []) };
+    }
+
+    return {
+      ...(latestDoc?.raw_payload || {}),
+      brief,
+      whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+      howStatements: latestDoc?.raw_payload?.howStatements || [],
+      whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+      opportunities: opportunities.map(i => ({ content: i.content, state: i.state })),
+      challenges: challenges.map(i => ({ content: i.content, state: i.state })),
+      milestones: (milestonesResp.milestones || []).map((m: string) => ({ content: m, state: 'draft' })),
+      values: latestDoc?.raw_payload?.values || [],
+      differentiators: latestDoc?.raw_payload?.differentiators || { whileOthers: [], weAreTheOnly: [] },
+    };
+  };
+
+  const handleComplete = async () => {
+    if (!hasAtLeastOneOpportunity || isAdvancing) return;
+    setIsAdvancing(true);
+    try {
+      const mergedPayload = await buildPayloadWithMilestones(false);
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      if (refreshData) await refreshData();
+
+      if (onComplete) {
+        onComplete();
+      } else if (completeStep) {
+        completeStep("opportunities-challenges");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to generate milestones');
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const selectionBundle = {
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+      };
+      const oppChal = await generateOpportunitiesAndChallenges(brief, selectionBundle);
+
+      if (latestDoc?.id) {
+        await supabase
+          .from('positioning_items')
+          .delete()
+          .eq('document_id', latestDoc.id)
+          .in('item_type', ['OPPORTUNITY', 'CHALLENGE']);
+      }
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief,
+        whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+        howStatements: latestDoc?.raw_payload?.howStatements || [],
+        whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+        opportunities: oppChal.opportunities || [],
+        challenges: oppChal.challenges || [],
+        milestones: latestDoc?.raw_payload?.milestones || [],
+        values: latestDoc?.raw_payload?.values || [],
+        differentiators: latestDoc?.raw_payload?.differentiators || {
+          whileOthers: [],
+          weAreTheOnly: [],
+        },
+      };
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      setSelectedOpportunities([]);
+      setSelectedChallenges([]);
+      if (refreshData) await refreshData();
+      toast.success('Opportunities & Challenges regenerated');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to regenerate milestones');
+    } finally {
+      setIsRegenerating(false);
     }
   };
   
@@ -375,7 +488,17 @@ const OpportunitiesChallenges: React.FC<OpportunitiesChallengesProps> = ({ onCom
   
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Opportunities & Challenges</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">Opportunities & Challenges</h2>
+        <Button
+          variant="outline"
+          className="border-cyan text-cyan hover:bg-cyan/10"
+          onClick={handleRegenerate}
+          disabled={isRegenerating || isAdvancing}
+        >
+          {isRegenerating ? 'Generating...' : 'Regenerate'}
+        </Button>
+      </div>
       {(opportunities.length === 0 && challenges.length === 0) ? (
         <div className="text-center text-muted-foreground py-12">
           No opportunities or challenges found. Add some to map your landscape.
@@ -553,11 +676,15 @@ const OpportunitiesChallenges: React.FC<OpportunitiesChallengesProps> = ({ onCom
       </Dialog>
       
       <div className="mt-6 text-right">
+        {isAdvancing && (
+          <div className="text-sm text-muted-foreground mb-2">Generating...</div>
+        )}
         <Button
           onClick={handleComplete}
           className="bg-white text-black border border-gray-300 hover:bg-gray-50 shadow-sm transition-colors"
+          disabled={!hasAtLeastOneOpportunity || isAdvancing}
         >
-          Complete & Continue
+          {hasExistingMilestones ? 'Next' : 'Complete & Continue'}
         </Button>
       </div>
     </div>

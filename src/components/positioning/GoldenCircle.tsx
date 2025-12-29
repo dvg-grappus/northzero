@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { generateMoreOptions } from '@/services/openaiService';
+import { generateMoreOptions, generateOpportunitiesAndChallenges, generateGoldenCircle } from '@/services/openaiService';
+import { updatePositioningDocumentForProject, getLatestPositioningDocument } from '@/services/positioningService';
 
 interface GoldenCircleProps {
   onComplete?: () => void;
@@ -17,7 +18,18 @@ interface GoldenCircleProps {
 
 const GoldenCircle: React.FC<GoldenCircleProps> = ({ onComplete }) => {
   const { selectedGoldenCircle, setSelectedGoldenCircle, completeStep } = useContext(PositioningContext);
-  const { whatStatements, howStatements, whyStatements, isLoading, updateItemState, refreshData, projectId } = usePositioningData();
+  const {
+    whatStatements,
+    howStatements,
+    whyStatements,
+    opportunities,
+    challenges,
+    isLoading,
+    updateItemState,
+    refreshData,
+    projectId,
+    brief,
+  } = usePositioningData();
   
   // Start with WHAT selected by default
   const [activeSegment, setActiveSegment] = useState<'why' | 'how' | 'what'>('what');
@@ -32,6 +44,8 @@ const GoldenCircle: React.FC<GoldenCircleProps> = ({ onComplete }) => {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [extraNote, setExtraNote] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Initialize selected items from database
   useEffect(() => {
@@ -113,11 +127,112 @@ const GoldenCircle: React.FC<GoldenCircleProps> = ({ onComplete }) => {
     await refreshData();
   };
 
-  const handleComplete = () => {
-    if (onComplete) {
-      onComplete();
-    } else if (completeStep) {
-      completeStep("golden-circle");
+  const hasAtLeastOnePerBucket =
+    selectedGoldenCircle.what.length > 0 &&
+    selectedGoldenCircle.how.length > 0 &&
+    selectedGoldenCircle.why.length > 0;
+  const hasExistingOppChal =
+    (opportunities?.length || 0) > 0 || (challenges?.length || 0) > 0;
+
+  const handleComplete = async () => {
+    if (!hasAtLeastOnePerBucket || isAdvancing) return;
+    // If already generated, just advance with no API call
+    if (hasExistingOppChal) {
+      if (onComplete) onComplete();
+      else if (completeStep) completeStep("golden-circle");
+      return;
+    }
+
+    setIsAdvancing(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const goldenCirclePayload = {
+        brief,
+        whatStatements: whatStatements.map(i => ({ content: i.content, state: i.state })),
+        howStatements: howStatements.map(i => ({ content: i.content, state: i.state })),
+        whyStatements: whyStatements.map(i => ({ content: i.content, state: i.state })),
+      };
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        ...goldenCirclePayload,
+        opportunities: latestDoc?.raw_payload?.opportunities || [],
+        challenges: latestDoc?.raw_payload?.challenges || [],
+        milestones: latestDoc?.raw_payload?.milestones || [],
+        values: latestDoc?.raw_payload?.values || [],
+        differentiators: latestDoc?.raw_payload?.differentiators || {
+          whileOthers: [],
+          weAreTheOnly: [],
+        },
+      };
+
+      const oppChal = await generateOpportunitiesAndChallenges(
+        brief,
+        {
+          whatStatements: selectedGoldenCircle.what,
+          howStatements: selectedGoldenCircle.how,
+          whyStatements: selectedGoldenCircle.why,
+        },
+      );
+      mergedPayload.opportunities = oppChal.opportunities || [];
+      mergedPayload.challenges = oppChal.challenges || [];
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      if (refreshData) await refreshData();
+
+      if (onComplete) {
+        onComplete();
+      } else if (completeStep) {
+        completeStep("golden-circle");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to generate opportunities and challenges');
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      // Regenerate fresh Golden Circle options with current selections as context
+      const selectionBundle = {
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+      };
+      const gc = await generateGoldenCircle(brief, selectionBundle);
+
+      // Clear existing GC (and downstream opp/challenge) items to avoid duplicates
+      if (latestDoc?.id) {
+        await supabase
+          .from('positioning_items')
+          .delete()
+          .eq('document_id', latestDoc.id)
+          .in('item_type', ['WHAT', 'HOW', 'WHY', 'OPPORTUNITY', 'CHALLENGE']);
+      }
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief,
+        whatStatements: (gc.whatStatements || []).map((c: string) => ({ content: c, state: 'draft' })),
+        howStatements: (gc.howStatements || []).map((c: string) => ({ content: c, state: 'draft' })),
+        whyStatements: (gc.whyStatements || []).map((c: string) => ({ content: c, state: 'draft' })),
+        // Reset downstream so user regenerates fresh paths from new GC
+        opportunities: [],
+        challenges: [],
+      };
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      setSelectedGoldenCircle({ what: [], how: [], why: [] });
+      if (refreshData) await refreshData();
+      toast.success('Golden Circle regenerated');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to regenerate Golden Circle');
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -278,14 +393,24 @@ const GoldenCircle: React.FC<GoldenCircleProps> = ({ onComplete }) => {
 
   return (
     <div className="text-center">
-      <motion.h2
-        className="text-[24px] font-bold mb-2"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        Golden Circle
-      </motion.h2>
+      <div className="flex justify-between items-start gap-3">
+        <motion.h2
+          className="text-[24px] font-bold mb-2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          Golden Circle
+        </motion.h2>
+        <Button
+          variant="outline"
+          className="border-cyan text-cyan hover:bg-cyan/10"
+          onClick={handleRegenerate}
+          disabled={isRegenerating || isAdvancing}
+        >
+          {isRegenerating ? 'Generating...' : 'Regenerate'}
+        </Button>
+      </div>
       
       <motion.p
         className="text-gray-600 mb-6"
@@ -521,11 +646,15 @@ const GoldenCircle: React.FC<GoldenCircleProps> = ({ onComplete }) => {
       </Dialog>
       
       <div className="mt-8 text-right">
+        {isAdvancing && (
+          <div className="text-sm text-muted-foreground mb-2">Generating...</div>
+        )}
         <Button
           onClick={handleComplete}
           className="bg-white text-black border border-gray-300 hover:bg-gray-50 shadow-sm transition-colors"
-        >
-          Complete & Continue
+          disabled={!hasAtLeastOnePerBucket || isAdvancing}
+          >
+          {hasExistingOppChal ? 'Next' : 'Complete & Continue'}
         </Button>
       </div>
     </div>

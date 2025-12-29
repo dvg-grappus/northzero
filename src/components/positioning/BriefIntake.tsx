@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { PositioningContext } from "@/contexts/PositioningContext";
 import { usePositioningData } from "./PositioningDataProvider";
 import { Edit } from "lucide-react";
-import { generatePositioningJson } from '@/services/openaiService';
+import {
+  generateGoldenCircle,
+  generateRemainingPositioningSections,
+} from '@/services/openaiService';
 import * as positioningService from '@/services/positioningService';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { replacePositioningDocumentForProject } from '@/services/positioningService';
@@ -87,15 +90,29 @@ const BriefIntake: React.FC<BriefIntakeProps> = ({ onComplete, isValid = false }
       setShowWarning(true);
       return;
     }
-    await actuallyGenerateIdeas();
+    await generateGoldenCircleOnly();
   };
 
-  const actuallyGenerateIdeas = async () => {
+  const generateGoldenCircleOnly = async () => {
     setError(null);
     setLoading(true);
     try {
-      const aiJson = await generatePositioningJson(briefContext);
-      await replacePositioningDocumentForProject(projectId, aiJson);
+      const aiJson = await generateGoldenCircle(briefContext);
+      const payload = {
+        brief: briefContext,
+        whatStatements: aiJson.whatStatements || [],
+        howStatements: aiJson.howStatements || [],
+        whyStatements: aiJson.whyStatements || [],
+        opportunities: [],
+        challenges: [],
+        milestones: [],
+        values: [],
+        differentiators: {
+          whileOthers: [],
+          weAreTheOnly: [],
+        },
+      };
+      await replacePositioningDocumentForProject(projectId, payload);
       if (refreshData) await refreshData();
       if (onComplete) {
         onComplete();
@@ -103,8 +120,44 @@ const BriefIntake: React.FC<BriefIntakeProps> = ({ onComplete, isValid = false }
         completeStep("brief");
       }
       setIsEditing(false);
+      setHasExistingDoc(true);
     } catch (err: any) {
       setError(err.message || 'Failed to generate ideas.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateRest = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const latest = await positioningService.getLatestPositioningDocument(projectId);
+      const goldenCircle = latest?.raw_payload || {};
+      const rest = await generateRemainingPositioningSections(
+        briefContext,
+        {
+          whatStatements: goldenCircle.whatStatements,
+          howStatements: goldenCircle.howStatements,
+          whyStatements: goldenCircle.whyStatements,
+        }
+      );
+      const merged = {
+        ...goldenCircle,
+        brief: briefContext,
+        opportunities: rest.opportunities || [],
+        challenges: rest.challenges || [],
+        milestones: rest.milestones || [],
+        values: rest.values || [],
+        differentiators: {
+          whileOthers: rest.differentiators?.whileOthers || [],
+          weAreTheOnly: rest.differentiators?.weAreTheOnly || [],
+        },
+      };
+      await replacePositioningDocumentForProject(projectId, merged);
+      if (refreshData) await refreshData();
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate remaining sections.');
     } finally {
       setLoading(false);
     }
@@ -137,7 +190,7 @@ const BriefIntake: React.FC<BriefIntakeProps> = ({ onComplete, isValid = false }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        Tell us what you're building in 80 words or fewer.
+        Tell us what you're building in 300 words or fewer.
       </motion.p>
       
       {(isBriefCompleted || brief) && !isEditing ? (
@@ -182,11 +235,11 @@ const BriefIntake: React.FC<BriefIntakeProps> = ({ onComplete, isValid = false }
               onChange={handleInputChange}
               placeholder="E.g. An AI-powered platform that…"
               className="w-full min-h-[180px] p-4 text-[16px]"
-              maxLength={600}
+              maxLength={4000}
               autoFocus
             />
             <div className="absolute bottom-4 right-4 text-sm text-gray-500">
-              {wordCount}/80 words
+              {wordCount}/300 words
             </div>
           </div>
           <div className="mt-6 flex justify-end gap-2">
@@ -218,7 +271,7 @@ const BriefIntake: React.FC<BriefIntakeProps> = ({ onComplete, isValid = false }
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setShowWarning(false)} disabled={loading}>Cancel</Button>
-                  <Button variant="destructive" onClick={async () => { setShowWarning(false); await actuallyGenerateIdeas(); }} disabled={loading}>
+                  <Button variant="destructive" onClick={async () => { setShowWarning(false); await generateGoldenCircleOnly(); }} disabled={loading}>
                     {loading ? 'Regenerating…' : 'Yes, Regenerate'}
                   </Button>
                 </DialogFooter>

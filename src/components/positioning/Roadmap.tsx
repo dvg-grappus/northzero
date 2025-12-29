@@ -9,6 +9,8 @@ import StickyNote from "./StickyNote";
 import { PositioningContext } from "@/contexts/PositioningContext";
 import { usePositioningData } from "./PositioningDataProvider";
 import { supabase } from "@/lib/supabase";
+import { generateMilestones, generateValues } from '@/services/openaiService';
+import { updatePositioningDocumentForProject, getLatestPositioningDocument } from '@/services/positioningService';
 import {
   DndContext,
   closestCenter,
@@ -25,13 +27,32 @@ import { generateMoreOptions } from '@/services/openaiService';
 
 const timelinePoints = ["Now", "1 yr", "3 yr", "5 yr", "10 yr"];
 
+const asMilestoneText = (raw: any): string => {
+  if (!raw) return '';
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed.content || parsed.title || raw;
+      }
+      return raw;
+    } catch {
+      return raw;
+    }
+  }
+  if (typeof raw === 'object') {
+    return raw.content || raw.title || '';
+  }
+  return '';
+};
+
 interface RoadmapProps {
   onComplete?: () => void;
 }
 
 const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
-  const { roadmapMilestones, setRoadmapMilestones, completeStep } = useContext(PositioningContext);
-  const { milestones, isLoading, updateMilestoneSlot, updateItemState, refreshData, projectId } = usePositioningData();
+  const { roadmapMilestones, setRoadmapMilestones, completeStep, selectedGoldenCircle, selectedOpportunities, selectedChallenges, briefContext } = useContext(PositioningContext);
+  const { milestones, values, isLoading, updateMilestoneSlot, updateItemState, refreshData, projectId } = usePositioningData();
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [customMilestone, setCustomMilestone] = useState("");
@@ -47,6 +68,7 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [extraNote, setExtraNote] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -370,17 +392,138 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
     }
   };
   
-  const handleComplete = () => {
-    if (onComplete) {
-      onComplete();
-    } else if (completeStep) {
-      completeStep("roadmap");
+  const isComplete =
+    Array.isArray(roadmapMilestones['Now']) && roadmapMilestones['Now'].length > 0 &&
+    Array.isArray(roadmapMilestones['1 yr']) && roadmapMilestones['1 yr'].length > 0;
+  const hasExistingValues = (values?.length || 0) > 0;
+
+  const [isAdvancing, setIsAdvancing] = useState(false);
+
+  const handleComplete = async () => {
+    if (!isComplete || isAdvancing) return;
+    if (hasExistingValues) {
+      if (onComplete) onComplete();
+      else if (completeStep) completeStep("roadmap");
+      return;
+    }
+    setIsAdvancing(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const selectionBundle = {
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+        opportunities: selectedOpportunities,
+        challenges: selectedChallenges,
+        milestones: milestones.map(m => m.content),
+      };
+      const genValues = await generateValues(briefContext, selectionBundle);
+      const normalizedValues = (genValues.values || []).map((v: any) => ({
+        title: v.title || '',
+        blurb: v.blurb || '',
+        state: 'draft',
+      }));
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief: briefContext,
+        whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+        howStatements: latestDoc?.raw_payload?.howStatements || [],
+        whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+        opportunities: latestDoc?.raw_payload?.opportunities || [],
+        challenges: latestDoc?.raw_payload?.challenges || [],
+        milestones: milestones.map(m => ({
+          content: m.content,
+          state: m.state,
+          slot: m.slot,
+        })),
+        values: normalizedValues,
+        differentiators: latestDoc?.raw_payload?.differentiators || { whileOthers: [], weAreTheOnly: [] },
+      };
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      if (refreshData) await refreshData();
+
+      if (onComplete) {
+        onComplete();
+      } else if (completeStep) {
+        completeStep("roadmap");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate values');
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    try {
+      const latestDoc = await getLatestPositioningDocument(projectId);
+      const selectionBundle = {
+        what: selectedGoldenCircle.what,
+        how: selectedGoldenCircle.how,
+        why: selectedGoldenCircle.why,
+        opportunities: selectedOpportunities,
+        challenges: selectedChallenges,
+      };
+      const gen = await generateMilestones(briefContext, selectionBundle);
+      const normalized = (gen.milestones || []).map((m: any) => asMilestoneText(m)).map(content => ({ content, state: 'draft' as const }));
+
+      // Clear existing milestones to avoid append on regen
+      if (latestDoc?.id) {
+        await supabase
+          .from('positioning_items')
+          .delete()
+          .eq('document_id', latestDoc.id)
+          .eq('item_type', 'MILESTONE');
+      }
+
+      const mergedPayload = {
+        ...(latestDoc?.raw_payload || {}),
+        brief: briefContext,
+        whatStatements: latestDoc?.raw_payload?.whatStatements || [],
+        howStatements: latestDoc?.raw_payload?.howStatements || [],
+        whyStatements: latestDoc?.raw_payload?.whyStatements || [],
+        opportunities: latestDoc?.raw_payload?.opportunities || [],
+        challenges: latestDoc?.raw_payload?.challenges || [],
+        milestones: normalized,
+        values: latestDoc?.raw_payload?.values || [],
+        differentiators: latestDoc?.raw_payload?.differentiators || { whileOthers: [], weAreTheOnly: [] },
+      };
+
+      await updatePositioningDocumentForProject(projectId, mergedPayload);
+      // Reset local slots
+      setRoadmapMilestones({
+        'Now': [],
+        '1 yr': [],
+        '3 yr': [],
+        '5 yr': [],
+        '10 yr': [],
+      });
+      if (refreshData) await refreshData();
+      toast.success('Milestones regenerated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to regenerate milestones');
+    } finally {
+      setIsRegenerating(false);
     }
   };
   
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Roadmap</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">Roadmap</h2>
+        <Button
+          variant="outline"
+          className="border-cyan text-cyan hover:bg-cyan/10"
+          onClick={handleRegenerate}
+          disabled={isRegenerating}
+        >
+          {isRegenerating ? 'Generating...' : 'Regenerate'}
+        </Button>
+      </div>
       {milestones.length === 0 ? (
         <div className="text-center text-muted-foreground py-12">
           No milestones yet. Add milestones to build your roadmap.
@@ -466,8 +609,8 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
                               <h4 className="text-base font-semibold mb-2">{point}</h4>
                               <div className="pl-2 space-y-3 min-h-[100px]">
                                 {roadmapMilestones[point]?.map((milestone, idx) => {
-                                  // Find the milestone item to get its ID
-                                  const milestoneItem = localMilestones.find(m => m.content === milestone);
+                                  const text = asMilestoneText(milestone);
+                                  const milestoneItem = localMilestones.find(m => asMilestoneText(m.content) === text);
                                   return milestoneItem ? (
                                     <motion.div
                                       key={`${point}-${idx}`}
@@ -477,7 +620,7 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
                                     >
                                       <StickyNote
                                         id={milestoneItem.id}
-                                        content={milestone}
+                                        content={text}
                                         isSelected={true}
                                         isDiscarded={false}
                                         onClick={() => handleMilestoneClick(milestoneItem.id)}
@@ -507,7 +650,9 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
                     ) : (
                       <div className="grid grid-cols-1 gap-4 mt-2">
                         {availableMilestones.length > 0 ? (
-                          availableMilestones.map((milestone, index) => (
+                          availableMilestones.map((milestone, index) => {
+                            const text = asMilestoneText(milestone.content || milestone);
+                            return (
                             <div 
                               key={`milestone-${milestone.id}`}
                               className="relative"
@@ -518,11 +663,11 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
                               >
                                 <StickyNote
                                   id={milestone.id}
-                                  content={milestone.content}
+                                  content={text}
                                   isSelected={false}
                                   isDiscarded={false}
                                   onClick={() => handleMilestoneClick(milestone.id)}
-                                  onDiscard={() => handleDiscardMilestone(milestone.content)}
+                                  onDiscard={() => handleDiscardMilestone(text)}
                                   color="#FFEB3B"
                                   className="border border-border/40"
                                 />
@@ -540,7 +685,8 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
                                 ))}
                               </div>
                             </div>
-                          ))
+                          );
+                          })
                         ) : (
                           <div className="text-center py-8 text-muted-foreground">
                             <p>No available milestones</p>
@@ -581,11 +727,15 @@ const Roadmap: React.FC<RoadmapProps> = ({ onComplete }) => {
           </Dialog>
           
           <div className="mt-6 text-right">
+        {isAdvancing && !hasExistingValues && (
+              <div className="text-sm text-muted-foreground mb-2">Generating...</div>
+            )}
             <Button
               onClick={handleComplete}
               className="bg-white text-black hover:bg-gray-100 transition-colors border border-gray-300 shadow-sm"
+              disabled={!isComplete || isAdvancing}
             >
-              Save timeline
+          {hasExistingValues ? 'Next' : 'Complete & Continue'}
             </Button>
           </div>
           
